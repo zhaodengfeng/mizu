@@ -14,10 +14,6 @@
 
 ---
 
-<p align="center">
-  <img src="assets/mizu-logo.png" alt="Mizu Logo" width="140">
-</p>
-
 ## 协议矩阵
 
 | 运行时 | 协议 | 原生程序 |
