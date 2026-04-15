@@ -1,16 +1,45 @@
-# Mizu — 全协议原生代理部署管理系统
+<div align="center">
 
-> 一键部署 9 种代理协议，每个协议使用其作者发布的原生二进制程序。
+<img src="assets/mizu-banner.png" alt="Mizu Banner" width="100%">
+
+**全协议原生代理部署管理系统**
+
+一键部署 9 种代理协议，每个协议使用其作者发布的原生二进制程序
+
+[![Version](https://img.shields.io/badge/version-26.4.16-blue.svg)](https://github.com/zhaodengfeng/mizu)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux-orange.svg)](#支持环境)
+
+</div>
+
+---
+
+<p align="center">
+  <img src="assets/mizu-logo.png" alt="Mizu Logo" width="140">
+</p>
+
+## 协议矩阵
+
+| 运行时 | 协议 | 原生程序 |
+|:------:|------|----------|
+| **Xray** | Trojan | Xray-core + Caddy（回落伪装） |
+| **Xray** | VLESS+Reality | Xray-core |
+| **Xray** | VLESS+Vision | Xray-core |
+| **Xray** | VMess+WS | Xray-core |
+| **sing-box** | ShadowTLS | sing-box |
+| **sing-box** | AnyTLS | sing-box |
+| **Hysteria** | Hysteria 2 | hysteria（端口跳跃 / Salamander） |
+| **SS-Rust** | Shadowsocks 2022 | shadowsocks-rust |
+| **Snell** | Snell v4 | snell-server |
 
 ## 特性
 
-- **9 种协议**: Trojan · VLESS+Reality · VLESS+Vision · VMess+WS · ShadowTLS · AnyTLS · Hysteria 2 · Shadowsocks 2022 · Snell v4
-- **原生部署**: 直接下载各项目官方二进制，不依赖 Docker
-- **双模式**: TUI 交互菜单 + CLI 命令行，适配不同使用场景
-- **证书管理**: 自动申请 / 续期 Let's Encrypt 证书，支持 HTTP-01 和 DNS-01（Cloudflare / DNSPod / Aliyun）
-- **安全加固**: systemd 沙箱隔离（NoNewPrivileges / ProtectSystem=strict）
-- **状态管理**: JSON 状态文件 + flock 互斥锁，支持多协议并行安装
-- **一键更新**: 运行时二进制独立更新，自动重启关联服务
+- **原生部署** — 直接下载各项目官方二进制，不依赖 Docker
+- **双模式** — TUI 交互菜单 + CLI 命令行，适配不同使用场景
+- **证书管理** — 自动申请/续期 Let's Encrypt 证书，支持 HTTP-01 和 DNS-01（Cloudflare / DNSPod / Aliyun）
+- **安全加固** — systemd 沙箱隔离（NoNewPrivileges / ProtectSystem=strict）
+- **状态管理** — JSON 状态文件 + flock 互斥锁，支持多协议并行安装
+- **一键更新** — 运行时二进制独立更新，自动重启关联服务
 
 ## 支持环境
 
@@ -28,7 +57,7 @@
 ## 快速开始
 
 ```bash
-# 安装
+# 一键安装
 bash <(curl -fsSL https://raw.githubusercontent.com/zhaodengfeng/mizu/main/mizu.sh)
 
 # 或克隆后运行
@@ -93,9 +122,10 @@ mizu/
 │   └── fallback-site.sh # Trojan 伪装站点生成
 ├── protocols/           # 9 个协议处理器（install/regen/uninstall）
 ├── runtimes/            # 6 个运行时下载器（xray/sing-box/hysteria/ss-rust/caddy/snell）
-└── templates/           # HTML/CSS 模板
+├── templates/           # HTML/CSS 模板
+└── assets/              # Logo 与 Banner 资源
 ```
 
 ## 许可证
 
-MIT
+[MIT](LICENSE)
