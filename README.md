@@ -1,0 +1,101 @@
+# Mizu — 全协议原生代理部署管理系统
+
+> 一键部署 9 种代理协议，每个协议使用其作者发布的原生二进制程序。
+
+## 特性
+
+- **9 种协议**: Trojan · VLESS+Reality · VLESS+Vision · VMess+WS · ShadowTLS · AnyTLS · Hysteria 2 · Shadowsocks 2022 · Snell v4
+- **原生部署**: 直接下载各项目官方二进制，不依赖 Docker
+- **双模式**: TUI 交互菜单 + CLI 命令行，适配不同使用场景
+- **证书管理**: 自动申请 / 续期 Let's Encrypt 证书，支持 HTTP-01 和 DNS-01（Cloudflare / DNSPod / Aliyun）
+- **安全加固**: systemd 沙箱隔离（NoNewPrivileges / ProtectSystem=strict）
+- **状态管理**: JSON 状态文件 + flock 互斥锁，支持多协议并行安装
+- **一键更新**: 运行时二进制独立更新，自动重启关联服务
+
+## 支持环境
+
+| 发行版 | 版本 |
+|--------|------|
+| Ubuntu | 20.04+ |
+| Debian | 11+ |
+| CentOS Stream | 8+ |
+| Fedora | 38+ |
+| AlmaLinux / Rocky Linux | 8+ |
+| Alpine | 3.18+ |
+
+架构: `x86_64 (amd64)` / `aarch64 (arm64)`
+
+## 快速开始
+
+```bash
+# 安装
+bash <(curl -fsSL https://raw.githubusercontent.com/zhaodengfeng/mizu/main/mizu.sh)
+
+# 或克隆后运行
+git clone https://github.com/zhaodengfeng/mizu.git /opt/mizu
+bash /opt/mizu/mizu.sh
+```
+
+无参数运行进入 TUI 交互模式，按菜单操作即可。
+
+## CLI 用法
+
+```
+mizu [命令] [参数]
+
+命令:
+  install <protocol> [domain]   安装协议
+  info <protocol>               查看凭证与分享链接
+  start <protocol>              启动服务
+  stop <protocol>               停止服务
+  restart <protocol>            重启服务
+  regen <protocol>              重新生成凭证
+  uninstall <protocol>          卸载协议
+  update [runtime|all]          检查/执行运行时更新
+  self-update                   更新 Mizu 脚本自身
+  uninstall-all                 完全卸载 Mizu
+  status                        状态总览
+  help                          显示帮助
+
+协议名称:
+  trojan  vless-reality  vless-vision  vmess
+  shadowtls  anytls  hysteria2  shadowsocks  snell
+```
+
+### 示例
+
+```bash
+# 安装 Trojan（需要域名）
+mizu install trojan example.com
+
+# 安装 VLESS+Reality（无需域名）
+mizu install vless-reality
+
+# 查看已安装协议的凭证
+mizu info trojan
+
+# 更新所有运行时
+mizu update all
+```
+
+## 项目结构
+
+```
+mizu/
+├── mizu.sh              # 主入口（TUI + CLI）
+├── lib/
+│   ├── common.sh        # 通用工具（状态管理、端口检测、密码生成）
+│   ├── cert.sh          # 证书管理（acme.sh 封装、引用计数）
+│   ├── service.sh       # systemd 服务管理
+│   ├── detect.sh        # 环境检测与依赖安装
+│   ├── menu.sh          # TUI 菜单渲染
+│   ├── share-link.sh    # 分享链接生成
+│   └── fallback-site.sh # Trojan 伪装站点生成
+├── protocols/           # 9 个协议处理器（install/regen/uninstall）
+├── runtimes/            # 6 个运行时下载器（xray/sing-box/hysteria/ss-rust/caddy/snell）
+└── templates/           # HTML/CSS 模板
+```
+
+## 许可证
+
+MIT

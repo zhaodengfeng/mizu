@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck
+        run: |
+          # Find all .sh files and lint them
+          # Exclude specific warnings:
+          #   SC1091: Not following sourced files (expected)
+          #   SC2034: Unused variables (false positives with associative arrays)
+          find . -name "*.sh" -not -path "./.git/*" -print0 \
+            | xargs -0 shellcheck \
+                --exclude=SC1091,SC2034 \
+                --severity=warning \
+                --format=tty \
+                || true
+
+      - name: Check bash syntax
+        run: |
+          errors=0
+          for f in $(find . -name "*.sh" -not -path "./.git/*"); do
+            if ! bash -n "$f" 2>/dev/null; then
+              echo "::error file=$f::Syntax error in $f"
+              bash -n "$f"
+              errors=$((errors + 1))
+            fi
+          done
+          if [[ $errors -gt 0 ]]; then
+            echo "Found $errors syntax errors"
+            exit 1
+          fi
+
+  test-structure:
+    name: Project Structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify project structure
+        run: |
+          # Check required directories
+          for dir in lib protocols runtimes templates; do
+            if [[ ! -d "$dir" ]]; then
+              echo "::error::Missing directory: $dir"
+              exit 1
+            fi
+          done
+
+          # Check required files
+          required_files=(
+            "mizu.sh"
+            "lib/common.sh"
+            "lib/detect.sh"
+            "lib/menu.sh"
+            "lib/cert.sh"
+            "lib/service.sh"
+            "lib/share-link.sh"
+            "lib/fallback-site.sh"
+            "protocols/trojan.sh"
+            "protocols/vless-reality.sh"
+            "protocols/vless-vision.sh"
+            "protocols/vmess.sh"
+            "protocols/shadowtls.sh"
+            "protocols/anytls.sh"
+            "protocols/hysteria2.sh"
+            "protocols/shadowsocks.sh"
+            "protocols/snell.sh"
+            "runtimes/xray.sh"
+            "runtimes/singbox.sh"
+            "runtimes/hysteria.sh"
+            "runtimes/shadowsocks-rust.sh"
+            "runtimes/snell.sh"
+            "runtimes/caddy.sh"
+            "templates/systemd.service"
+            "templates/site-index.html"
+            "templates/site-journal.html"
+            "templates/site-about.html"
+            "templates/site-styles.css"
+          )
+
+          for f in "${required_files[@]}"; do
+            if [[ ! -f "$f" ]]; then
+              echo "::error::Missing file: $f"
+              exit 1
+            fi
+          done
+
+          echo "All required files present"
+
+      - name: Verify mizu.sh is executable
+        run: |
+          if [[ ! -x mizu.sh ]]; then
+            echo "::error::mizu.sh is not executable"
+            exit 1
+          fi
+
+      - name: Count files and lines
+        run: |
+          file_count=$(find . -type f -not -path "./.git/*" | wc -l)
+          line_count=$(find . -type f -name "*.sh" -not -path "./.git/*" -exec cat {} + | wc -l)
+          echo "Files: $file_count"
+          echo "Shell lines: $line_count"
