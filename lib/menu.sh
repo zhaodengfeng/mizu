@@ -142,7 +142,7 @@ show_protocol_detail() {
     fi
 
     clear_screen
-    printf "${C_CYAN}%s${C_RESET}  %s\n\n" "$name" "$status_text"
+    printf "${C_CYAN}%s${C_RESET}  %b\n\n" "$name" "$status_text"
 
     # Protocol-specific info display
     show_proto_credentials "$proto"
