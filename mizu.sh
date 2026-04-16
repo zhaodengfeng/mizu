@@ -483,6 +483,10 @@ tui_uninstall() {
 
 # ─── Main Loop ────────────────────────────────────────────────────────────────
 tui_main() {
+    # Disable exit-on-error for interactive TUI — benign command failures
+    # (empty jq results, missing services, etc.) must not kill the script
+    set +e
+
     local ipv4
     ipv4=$(detect_ipv4)
     local arch
