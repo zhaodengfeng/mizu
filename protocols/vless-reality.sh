@@ -29,10 +29,12 @@ prompt_reality_dest() {
     for ((i=0; i<${#REALITY_DESTS[@]}; i++)); do
         printf "${C_WHITE}  [%d] %-28s %s${C_RESET}\n" "$((i+1))" "${REALITY_DESTS[$i]}" "${REALITY_DEST_LABELS[$i]}" >&2
     done
+    local custom_idx=$((${#REALITY_DESTS[@]}+1))
+    printf "${C_WHITE}  [%d] 自定义${C_RESET}\n" "$custom_idx" >&2
     printf "${C_WHITE}  [0] 随机${C_RESET}\n" >&2
     echo "" >&2
     while true; do
-        printf "请选择 [0-%d]: " "${#REALITY_DESTS[@]}" >&2
+        printf "请选择 [0-%d]: " "$custom_idx" >&2
         read -r choice
         if [[ "$choice" == "0" ]]; then
             echo "${REALITY_DESTS[$((RANDOM % ${#REALITY_DESTS[@]}))]}"
@@ -40,6 +42,17 @@ prompt_reality_dest() {
         elif [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#REALITY_DESTS[@]} )); then
             echo "${REALITY_DESTS[$((choice-1))]}"
             return 0
+        elif [[ "$choice" == "$custom_idx" ]]; then
+            local custom_domain custom_port="443"
+            while true; do
+                printf "${C_WHITE}请输入域名 (如 www.example.com): ${C_RESET}" >&2
+                read -r custom_domain
+                if validate_domain "$custom_domain"; then
+                    echo "${custom_domain}:${custom_port}"
+                    return 0
+                fi
+                msg_error "域名格式无效，请重新输入" >&2
+            done
         fi
         msg_error "无效选择，请重新输入" >&2
     done
