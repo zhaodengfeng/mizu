@@ -8,8 +8,8 @@ set -euo pipefail
 VERSION="26.4.16"
 MIZU_REPO="zhaodengfeng/mizu"
 
-# ─── Bootstrap: if running from process substitution (curl|bash), clone and re-exec ──
-if [[ "$0" == /dev/fd/* ]]; then
+# ─── Bootstrap: if running from process substitution (curl|bash), clone to /opt/mizu ──
+if [[ "$0" == /dev/fd/* || "$0" == *"/proc/"* ]]; then
     if ! command -v git >/dev/null 2>&1; then
         echo "错误: 请先安装 git (apt install git / yum install git)" >&2
         exit 1
@@ -21,25 +21,17 @@ if [[ "$0" == /dev/fd/* ]]; then
         echo "正在下载 Mizu 到 /opt/mizu ..."
         git clone "https://github.com/${MIZU_REPO}.git" /opt/mizu --quiet
     fi
-    echo "启动 Mizu ..."
-    exec bash /opt/mizu/mizu.sh "$@" </dev/tty >/dev/tty 2>&1
+    # Re-exec from the real path so $0 and BASH_SOURCE are correct
+    exec /opt/mizu/mizu.sh "$@"
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$SCRIPT_DIR")"
 
-# If running from /opt/mizu, use that path
-if [[ "$SCRIPT_DIR" == "/opt/mizu" ]]; then
-    LIB_DIR="/opt/mizu/lib"
-    PROTO_DIR_SCRIPTS="/opt/mizu/protocols"
-    RUNTIME_DIR="/opt/mizu/runtimes"
-    TEMPLATE_DIR="/opt/mizu/templates"
-else
-    LIB_DIR="${SCRIPT_DIR}/lib"
-    PROTO_DIR_SCRIPTS="${SCRIPT_DIR}/protocols"
-    RUNTIME_DIR="${SCRIPT_DIR}/runtimes"
-    TEMPLATE_DIR="${SCRIPT_DIR}/templates"
-fi
+LIB_DIR="${SCRIPT_DIR}/lib"
+PROTO_DIR_SCRIPTS="${SCRIPT_DIR}/protocols"
+RUNTIME_DIR="${SCRIPT_DIR}/runtimes"
+TEMPLATE_DIR="${SCRIPT_DIR}/templates"
 
 # ─── Load libraries ──────────────────────────────────────────────────────────
 source "${LIB_DIR}/common.sh"

@@ -310,7 +310,7 @@ prompt_domain() {
     fi
     local domain=""
     while true; do
-        printf "${C_WHITE}请输入域名: ${C_RESET}"
+        echo -ne "${C_WHITE}请输入域名: ${C_RESET}"
         read -r domain
         if validate_domain "$domain"; then
             echo "$domain"
