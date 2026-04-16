@@ -250,7 +250,7 @@ cert_issue() {
     fi
 
     # Clear old account data and re-register with correct email
-    rm -rf ~/.acme.sh/ca/ 2>/dev/null
+    rm -rf ~/.acme.sh/ca/ ~/.acme.sh/account.conf 2>/dev/null
     ~/.acme.sh/acme.sh --register-account -m "$_MIZU_ACME_EMAIL" --server letsencrypt 2>/dev/null
 
     local issue_args=(
