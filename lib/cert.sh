@@ -22,7 +22,7 @@ DNS_PROVIDERS=(
     "dns_route53"
 )
 
-DNS_PROVIDER_NAMES=(
+declare -A DNS_PROVIDER_NAMES=(
     ["cloudflare"]="Cloudflare"
     ["dns_ali"]="阿里云 DNS"
     ["dns_dp"]="DNSPod (腾讯云)"
@@ -34,7 +34,7 @@ DNS_PROVIDER_NAMES=(
 )
 
 # Required env vars per provider
-DNS_ENV_VARS=(
+declare -A DNS_ENV_VARS=(
     ["cloudflare"]="CF_Token:CF_Zone_ID"
     ["dns_ali"]="Ali_Key:Ali_Secret"
     ["dns_dp"]="DP_Id:DP_Key"
@@ -45,7 +45,7 @@ DNS_ENV_VARS=(
     ["dns_route53"]="AWS_ACCESS_KEY_ID:AWS_SECRET_ACCESS_KEY"
 )
 
-DNS_ENV_PROMPTS=(
+declare -A DNS_ENV_PROMPTS=(
     ["cloudflare"]="CF_Token:API Token:;CF_Zone_ID:Zone ID:"
     ["dns_ali"]="Ali_Key:Access Key ID:;Ali_Secret:Access Key Secret:"
     ["dns_dp"]="DP_Id:Account ID:;DP_Key:API Token:"

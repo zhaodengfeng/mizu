@@ -9,7 +9,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 # ─── Protocol Display Info ───────────────────────────────────────────────────
 PROTO_ORDER=(trojan vless-reality vless-vision vmess shadowtls anytls hysteria2 shadowsocks snell)
 
-PROTO_NAMES=(
+declare -A PROTO_NAMES=(
     ["trojan"]="Trojan"
     ["vless-reality"]="VLESS + Reality"
     ["vless-vision"]="VLESS + Vision"
@@ -21,7 +21,7 @@ PROTO_NAMES=(
     ["snell"]="Snell v5"
 )
 
-PROTO_DESCS=(
+declare -A PROTO_DESCS=(
     ["trojan"]="TCP+TLS 伪装网站"
     ["vless-reality"]="无需域名"
     ["vless-vision"]="TCP+TLS"
