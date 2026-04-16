@@ -806,10 +806,8 @@ main() {
     # TUI mode
     mizu_init
 
-    # First run → environment detection
-    if [[ "$FIRST_RUN" == "true" ]]; then
-        detect_environment || exit 1
-    fi
+    # Environment detection (always check dependencies)
+    detect_environment || exit 1
 
     tui_main
 }
