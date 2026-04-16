@@ -339,6 +339,8 @@ cert_issue() {
         2>/dev/null
 
     msg_success "证书已安装到 ${CERT_DIR}/${domain}/"
+    # Allow service users (nobody) to read certificates
+    chmod -R o+rX "${CERT_DIR}" 2>/dev/null
     cert_ref_add "$domain"
 
     return 0

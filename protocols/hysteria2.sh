@@ -18,15 +18,15 @@ hysteria2_install() {
     domain=$(prompt_domain)
 
     # Step 1: Install Hysteria
-    msg_step 1 6 "安装 Hysteria 2..."
+    msg_step 1 5 "安装 Hysteria 2..."
     rt_hysteria_install || return 1
 
     # Step 2: Certificate
-    msg_step 2 6 "检查证书..."
+    msg_step 2 5 "检查证书..."
     cert_issue "$domain" || return 1
 
     # Step 3: Generate credentials
-    msg_step 3 6 "生成凭证..."
+    msg_step 3 5 "生成凭证..."
     local password
     password=$(gen_base64 32)
     msg_success "密码: ${password}"
@@ -50,19 +50,8 @@ hysteria2_install() {
         msg_success "端口跳跃: ${hopping_range} → ${port}"
     fi
 
-    # Step 5: Salamander obfuscation option
-    local obfs_type=""
-    local obfs_password=""
-
-    if prompt_yesno "启用 Salamander 混淆? (仅网络封锁 QUIC 时启用)" "N"; then
-        obfs_type="salamander"
-        obfs_password=$(gen_base64 16)
-        msg_success "混淆密码: ${obfs_password}"
-        msg_warn "启用混淆后 masquerade 将失效，不再是有效 HTTP/3 服务器"
-    fi
-
-    # Step 6: Generate config & start
-    msg_step 6 6 "启动 Hysteria 2..."
+    # Step 5: Generate config & start
+    msg_step 5 5 "启动 Hysteria 2..."
 
     mkdir -p "$proto_dir"
 
@@ -72,22 +61,6 @@ listen: :${port}
 tls:
   cert: $(cert_fullchain "$domain")
   key: $(cert_key "$domain")
-EOF
-
-    # Salamander obfuscation (only if enabled)
-    if [[ -n "$obfs_type" ]]; then
-        cat >> "${proto_dir}/config.yaml" <<EOF
-
-obfs:
-  type: ${obfs_type}
-  ${obfs_type}:
-    password: ${obfs_password}
-EOF
-    fi
-
-    # Masquerade (skip if obfs enabled — salamander breaks masquerade)
-    if [[ -z "$obfs_type" ]]; then
-        cat >> "${proto_dir}/config.yaml" <<EOF
 
 masquerade:
   type: proxy
@@ -95,7 +68,6 @@ masquerade:
     url: https://news.yandex.com
     rewriteHost: true
 EOF
-    fi
 
     # Auth + QUIC
     cat >> "${proto_dir}/config.yaml" <<EOF
@@ -153,9 +125,6 @@ EOF
     local ipv4
     ipv4=$(detect_ipv4)
     local share_params="sni=${domain}&insecure=0"
-    if [[ -n "$obfs_type" ]]; then
-        share_params="${share_params}&obfs=${obfs_type}&obfs-password=$(url_encode "$obfs_password")"
-    fi
     if [[ "$port_hopping" == "y" ]]; then
         share_params="${share_params}&mport=${hopping_range}"
     fi
@@ -163,16 +132,13 @@ EOF
 
     state_set_protocol "$proto" "$(jq -n --arg port "$port" --arg domain "$domain" --arg password "$password" \
         --arg port_hopping "$port_hopping" --arg hopping_range "$hopping_range" \
-        --arg obfs_type "$obfs_type" --arg obfs_password "$obfs_password" \
         --arg link "$share_link" '{
             "port": $port, "domain": $domain, "transport": "QUIC/UDP",
             "status": "running", "share_link": $link,
             "credential": {
                 "password": $password,
                 "port_hopping": $port_hopping,
-                "hopping_range": $hopping_range,
-                "obfs_type": (if $obfs_type == "" then null else $obfs_type end),
-                "obfs_password": (if $obfs_password == "" then null else $obfs_password end)
+                "hopping_range": $hopping_range
             }
         }')"
 
