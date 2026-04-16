@@ -61,7 +61,7 @@ install_acme() {
         return 0
     fi
     msg_warn "acme.sh: 未安装 → 安装中..."
-    curl -fsSL https://get.acme.sh | sh -s email=mizu@local
+    curl -fsSL https://get.acme.sh | sh
     if [[ -f ~/.acme.sh/acme.sh ]]; then
         msg_success "acme.sh: 已自动安装"
         return 0
@@ -215,7 +215,5 @@ detect_environment() {
         msg_error "环境检测未通过，请解决上述问题后重试"
         return 1
     fi
-    echo ""
-    press_enter
     return 0
 }

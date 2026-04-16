@@ -171,7 +171,7 @@ cert_issue_dns() {
     prompt_dns_env "$provider"
 
     # Register account
-    ~/.acme.sh/acme.sh --register-account -m mizu@local --server letsencrypt 2>/dev/null
+    ~/.acme.sh/acme.sh --register-account --server letsencrypt 2>/dev/null
 
     # Issue with DNS
     if ~/.acme.sh/acme.sh --issue -d "$domain" --keylength ec-256 --dns "$provider" --server letsencrypt 2>/dev/null; then
@@ -235,7 +235,7 @@ cert_issue() {
     msg_warn "正在申请证书: ${domain}..."
 
     # Ensure acme.sh is registered
-    ~/.acme.sh/acme.sh --register-account -m mizu@local --server letsencrypt 2>/dev/null
+    ~/.acme.sh/acme.sh --register-account --server letsencrypt 2>/dev/null
 
     local issue_args=(
         --issue
@@ -295,7 +295,7 @@ cert_issue() {
             2)
                 msg_warn "尝试 ZeroSSL..."
                 local zerossl_output
-                ~/.acme.sh/acme.sh --register-account -m mizu@local --server zerossl 2>/dev/null
+                ~/.acme.sh/acme.sh --register-account --server zerossl 2>/dev/null
                 zerossl_output=$(~/.acme.sh/acme.sh --issue -d "$domain" --keylength ec-256 --server zerossl --standalone 2>&1)
                 if [[ $? -eq 0 ]]; then
                     msg_success "证书申请成功 (ZeroSSL)"
