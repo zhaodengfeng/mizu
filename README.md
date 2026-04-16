@@ -21,22 +21,21 @@
 
 ## 协议矩阵
 
-<table width="100%">
-  <thead>
-    <tr><th align="center">运行时</th><th>协议</th><th>原生程序</th></tr>
-  </thead>
-  <tbody>
-    <tr><td align="center"><b>Xray</b></td><td>Trojan</td><td>Xray-core + Caddy（回落伪装）</td></tr>
-    <tr><td align="center"><b>Xray</b></td><td>VLESS+Reality</td><td>Xray-core</td></tr>
-    <tr><td align="center"><b>Xray</b></td><td>VLESS+Vision</td><td>Xray-core</td></tr>
-    <tr><td align="center"><b>Xray</b></td><td>VMess+WS</td><td>Xray-core</td></tr>
-    <tr><td align="center"><b>sing-box</b></td><td>ShadowTLS</td><td>sing-box</td></tr>
-    <tr><td align="center"><b>sing-box</b></td><td>AnyTLS</td><td>sing-box</td></tr>
-    <tr><td align="center"><b>Hysteria</b></td><td>Hysteria 2</td><td>hysteria（端口跳跃 / Salamander）</td></tr>
-    <tr><td align="center"><b>SS-Rust</b></td><td>Shadowsocks 2022</td><td>shadowsocks-rust</td></tr>
-    <tr><td align="center"><b>Snell</b></td><td>Snell v4</td><td>snell-server</td></tr>
-  </tbody>
-</table>
+<div align="center">
+
+| 运行时 | 协议 | 原生程序 |
+|:------:|:----:|----------|
+| **Xray** | Trojan | Xray-core + Caddy（回落伪装） |
+| **Xray** | VLESS+Reality | Xray-core |
+| **Xray** | VLESS+Vision | Xray-core |
+| **Xray** | VMess+WS | Xray-core |
+| **sing-box** | ShadowTLS | sing-box |
+| **sing-box** | AnyTLS | sing-box |
+| **Hysteria** | Hysteria 2 | hysteria（端口跳跃 / Salamander） |
+| **SS-Rust** | Shadowsocks 2022 | shadowsocks-rust |
+| **Snell** | Snell v4 | snell-server |
+
+</div>
 
 ## 特性
 
@@ -49,21 +48,20 @@
 
 ## 支持环境
 
-<table width="100%">
-  <thead>
-    <tr><th>发行版</th><th>版本</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Ubuntu</td><td>20.04+</td></tr>
-    <tr><td>Debian</td><td>11+</td></tr>
-    <tr><td>CentOS Stream</td><td>8+</td></tr>
-    <tr><td>Fedora</td><td>38+</td></tr>
-    <tr><td>AlmaLinux / Rocky Linux</td><td>8+</td></tr>
-    <tr><td>Alpine</td><td>3.18+</td></tr>
-  </tbody>
-</table>
+<div align="center">
+
+| 发行版 | 版本 |
+|:------:|:----:|
+| Ubuntu | 20.04+ |
+| Debian | 11+ |
+| CentOS Stream | 8+ |
+| Fedora | 38+ |
+| AlmaLinux / Rocky Linux | 8+ |
+| Alpine | 3.18+ |
 
 架构: `x86_64 (amd64)` / `aarch64 (arm64)`
+
+</div>
 
 ## 快速开始
 
