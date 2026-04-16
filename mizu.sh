@@ -393,7 +393,6 @@ tui_install_protocol() {
                     press_enter
                 else
                     "${PROTO_INSTALL_FUNC[$proto]}"
-                    press_enter
                 fi
                 ;;
             *) ;;
