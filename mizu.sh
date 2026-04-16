@@ -15,13 +15,13 @@ if [[ "$0" == /dev/fd/* ]]; then
         exit 1
     fi
     if [[ -d /opt/mizu ]]; then
-        echo "检测到已有安装，更新 /opt/mizu ..."
+        echo "检测到已有安装，正在更新 ..."
         git -C /opt/mizu pull --ff-only 2>/dev/null || true
     else
-        echo "克隆 Mizu 到 /opt/mizu ..."
-        git clone "https://github.com/${MIZU_REPO}.git" /opt/mizu
+        echo "正在下载 Mizu 到 /opt/mizu ..."
+        git clone "https://github.com/${MIZU_REPO}.git" /opt/mizu --quiet
     fi
-    echo "重新启动 Mizu ..."
+    echo "启动 Mizu ..."
     exec bash /opt/mizu/mizu.sh "$@"
 fi
 
