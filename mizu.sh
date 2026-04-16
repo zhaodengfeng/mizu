@@ -362,7 +362,6 @@ tui_install_protocol() {
                 local proto="${PROTO_ORDER[$idx]}"
                 if [[ -n "$proto" && -f "${PROTO_SCRIPTS[$proto]}" ]]; then
                     "${PROTO_INSTALL_FUNC[$proto]}"
-                    press_enter
                 fi
                 ;;
             *) ;;
