@@ -24,7 +24,7 @@ vless_reality_install() {
 
     # Resolve port
     local port
-    port=$(resolve_port 443 8443)
+    port=$(resolve_port 443 8443) || { msg_error "端口分配失败"; return 1; }
 
     # Step 1: Install Xray
     msg_step 1 3 "安装 Xray..."
