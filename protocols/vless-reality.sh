@@ -49,8 +49,8 @@ vless_reality_install() {
     local proto="vless-reality"
     local proto_dir="/etc/mizu/${proto}"
 
-    if state_protocol_exists "$proto"; then
-        msg_error "VLESS+Reality 已安装，请先卸载"
+    if state_protocol_exists "$proto" || [[ -f "/etc/systemd/system/mizu-${proto}.service" ]]; then
+        msg_error "VLESS+Reality 已安装或存在残留，请先卸载 (mizu uninstall vless-reality)"
         return 1
     fi
 

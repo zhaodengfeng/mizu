@@ -6,7 +6,7 @@ trojan_install() {
     local proto_dir="/etc/mizu/${proto}"
 
     # Check if already installed
-    if state_protocol_exists "$proto"; then
+    if state_protocol_exists "$proto" || [[ -f "/etc/systemd/system/mizu-${proto}.service" ]]; then
         msg_error "Trojan 已安装，请先卸载"
         return 1
     fi
@@ -158,6 +158,13 @@ trojan_uninstall() {
     msg_warn "正在卸载 Trojan..."
 
     service_remove "$proto"
+
+    # Stop and remove Caddy service
+    systemctl stop mizu-caddy 2>/dev/null
+    systemctl disable mizu-caddy 2>/dev/null
+    rm -f /etc/systemd/system/mizu-caddy.service
+    systemctl daemon-reload 2>/dev/null
+
     rm -rf "$proto_dir"
     rm -rf /etc/mizu/caddy
     remove_site
@@ -168,8 +175,7 @@ trojan_uninstall() {
 
     state_del ".protocols.${proto}"
 
-    # Remove Caddy only if no other protocol needs it
-    # Currently only Trojan uses Caddy; extend this list if more protocols adopt Caddy
+    # Remove Caddy binary if no other protocol needs it
     rt_caddy_remove 2>/dev/null || true
 
     msg_success "Trojan 已卸载"

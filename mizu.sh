@@ -228,7 +228,8 @@ cli_regen() {
 
 cli_uninstall_proto() {
     local proto="$1"
-    if ! state_protocol_exists "$proto"; then
+    # Allow uninstall even if state is missing (cleanup residual services)
+    if ! state_protocol_exists "$proto" && [[ ! -f "/etc/systemd/system/mizu-${proto}.service" ]]; then
         msg_error "${PROTO_NAMES[$proto]} 未安装"
         exit 1
     fi

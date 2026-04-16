@@ -5,7 +5,7 @@ snell_install() {
     local proto="snell"
     local proto_dir="/etc/mizu/${proto}"
 
-    if state_protocol_exists "$proto"; then
+    if state_protocol_exists "$proto" || [[ -f "/etc/systemd/system/mizu-${proto}.service" ]]; then
         msg_error "Snell v5 已安装，请先卸载"
         return 1
     fi
