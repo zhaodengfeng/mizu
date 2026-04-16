@@ -36,11 +36,15 @@ anytls_install() {
 
     mkdir -p "$proto_dir"
 
+    local cert_path key_path
+    cert_path=$(cert_fullchain "$domain")
+    key_path=$(cert_key "$domain")
+
     jq -n \
         --arg password "$password" \
         --arg domain "$domain" \
-        --arg cert "$(cert_fullchain "$domain")" \
-        --arg key "$(cert_key "$domain")" \
+        --arg cert "$cert_path" \
+        --arg key "$key_path" \
         --argjson port "$port" \
         '{
             "inbounds": [{
@@ -48,7 +52,7 @@ anytls_install() {
                 "tag": "anytls-in",
                 "listen": "::",
                 "listen_port": $port,
-                "password": $password,
+                "users": [{"name": "mizu", "password": $password}],
                 "tls": {
                     "enabled": true,
                     "server_name": $domain,
@@ -57,7 +61,7 @@ anytls_install() {
                 }
             }],
             "outbounds": [{"type": "direct", "tag": "direct"}]
-        }' > "${proto_dir}/config.json"
+        }' > "${proto_dir}/config.json" || { msg_error "配置文件生成失败"; return 1; }
 
     service_create "$proto" "/usr/local/bin/sing-box" "run -c ${proto_dir}/config.json" || return 1
     service_start_verified "$proto" || return 1
@@ -85,7 +89,7 @@ anytls_regen() {
     local password
     password=$(gen_password)
 
-    jq --arg p "$password" '.inbounds[0].password = $p' \
+    jq --arg p "$password" '.inbounds[0].users[0].password = $p' \
         "${proto_dir}/config.json" > "${proto_dir}/config.json.tmp" \
         && mv "${proto_dir}/config.json.tmp" "${proto_dir}/config.json"
 
