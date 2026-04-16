@@ -2,9 +2,7 @@
 
 <img src="assets/mizu-banner.png" alt="Mizu Banner" width="100%">
 
-**全协议原生代理部署管理系统**
-
-一键部署 9 种代理协议，每个协议使用其作者发布的原生二进制程序
+Mizu，取水之意。水润万物而不争，随势成形，故此项目亦以"化繁为简"为旨：将 Snell、Vless、Hysteria 等常见代理协议的部署、配置与启用，尽量归于一键完成，使原本繁杂反复之事，变得清晰、顺手、可复用。愿初学者见之不惧其难，熟练者用之亦省其功，使每一次搭建都如行舟顺水，轻而能达，稳而不乱。
 
 [![Version](https://img.shields.io/badge/version-26.4.16-blue.svg)](https://github.com/zhaodengfeng/mizu)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
