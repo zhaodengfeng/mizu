@@ -11,6 +11,42 @@ REALITY_DESTS=(
     "addons.mozilla.org:443"
 )
 
+declare -A REALITY_DEST_NAMES=(
+    ["www.microsoft.com:443"]="Microsoft"
+    ["www.apple.com:443"]="Apple"
+    ["gateway.icloud.com:443"]="Apple iCloud"
+    ["dl.google.com:443"]="Google"
+    ["www.amazon.com:443"]="Amazon"
+    ["addons.mozilla.org:443"]="Mozilla"
+)
+
+# ─── Prompt user to pick a Reality dest ───────────────────────────────────────
+prompt_reality_dest() {
+    echo "" >&2
+    msg_info "选择伪装目标" >&2
+    echo "" >&2
+    local i=1
+    for dest in "${REALITY_DESTS[@]}"; do
+        local name="${REALITY_DEST_NAMES[$dest]}"
+        printf "${C_WHITE}  [%d] %-28s %s${C_RESET}\n" "$i" "$dest" "$name" >&2
+        ((i++))
+    done
+    printf "${C_WHITE}  [0] 随机${C_RESET}\n" >&2
+    echo "" >&2
+    while true; do
+        printf "请选择 [0-%d]: " "$((i-1))" >&2
+        read -r choice
+        if [[ "$choice" == "0" ]]; then
+            echo "${REALITY_DESTS[$((RANDOM % ${#REALITY_DESTS[@]}))]}"
+            return 0
+        elif [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#REALITY_DESTS[@]} )); then
+            echo "${REALITY_DESTS[$((choice-1))]}"
+            return 0
+        fi
+        msg_error "无效选择，请重新输入" >&2
+    done
+}
+
 vless_reality_install() {
     local proto="vless-reality"
     local proto_dir="/etc/mizu/${proto}"
@@ -52,7 +88,8 @@ vless_reality_install() {
     short_id=$(openssl rand -hex 8)
 
     # Pick dest
-    local dest="${REALITY_DESTS[$((RANDOM % ${#REALITY_DESTS[@]}))]}"
+    local dest
+    dest=$(prompt_reality_dest)
     local dest_domain="${dest%%:*}"
     local dest_port="${dest##*:}"
 

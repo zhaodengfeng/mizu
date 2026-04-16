@@ -418,7 +418,7 @@ show_install_result() {
         echo ""
     fi
     if [[ -t 0 ]]; then
-        printf "${C_GRAY}  [回车] 返回主菜单  [Q] 显示二维码${C_RESET}\n"
+        printf "${C_GRAY}  [Q] 显示二维码  [回车] 继续${C_RESET}\n"
         read -r -n1 action
         echo ""
         if [[ "$action" == [qQ] ]]; then
