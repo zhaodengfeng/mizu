@@ -148,8 +148,7 @@ detect_environment() {
     done
 
     if [[ ${#missing_pkgs[@]} -gt 0 ]]; then
-        msg_warn "将安装缺失依赖: ${missing_pkgs[*]}"
-        prompt_yesno "继续安装?" "Y" || return 1
+        msg_info "安装缺失依赖: ${missing_pkgs[*]}"
         pkg_install "${missing_pkgs[@]}"
         for dep in "${missing_pkgs[@]}"; do
             if check_dep "$dep"; then
@@ -165,8 +164,7 @@ detect_environment() {
     if check_dep acme.sh; then
         msg_success "acme.sh:  已安装"
     else
-        msg_warn "将安装 acme.sh (证书管理工具)"
-        prompt_yesno "继续安装?" "Y" || return 1
+        msg_info "安装 acme.sh (证书管理工具)..."
         install_acme
     fi
 
@@ -174,8 +172,7 @@ detect_environment() {
     if check_dep chrony; then
         msg_success "NTP:      已同步 (chronyd)"
     else
-        msg_warn "NTP:      未检测到 → 安装 chrony"
-        prompt_yesno "继续安装?" "Y" || return 1
+        msg_info "NTP:      安装 chrony..."
         install_chrony
         if check_dep chrony; then
             msg_success "NTP:      已自动安装并启动"
