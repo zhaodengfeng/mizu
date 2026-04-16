@@ -681,9 +681,9 @@ tui_check_updates() {
         echo ""
         local i=1
         for item in "${updates[@]}"; do
-            local name
-            IFS='|' read -r name _ _ _ <<< "$item"
-            printf "  ${C_WHITE}[%d] 更新 %s${C_RESET}\n" "$i" "$name"
+            local name current latest
+            IFS='|' read -r name current latest _ <<< "$item"
+            printf "  ${C_WHITE}[%d] %-16s ${C_YELLOW}v%s → v%s${C_RESET}\n" "$i" "$name" "$current" "$latest"
             ((i++))
         done
         printf "  ${C_WHITE}[A] 全部更新  [0] 返回${C_RESET}\n"
