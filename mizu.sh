@@ -114,8 +114,9 @@ load_runtimes() {
 mizu_init() {
     check_root
 
-    # Create log directory
+    # Create log directory (world-writable for nobody user)
     mkdir -p /var/log/mizu
+    chmod 777 /var/log/mizu
 
     # Setup logrotate (once)
     if [[ ! -f /etc/logrotate.d/mizu ]]; then
