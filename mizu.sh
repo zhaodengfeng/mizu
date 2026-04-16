@@ -418,11 +418,10 @@ tui_protocol_detail() {
 
     while true; do
         show_protocol_detail "$proto"
-        read -r -n1 choice
-        echo ""
+        read -r choice
 
         case "$choice" in
-            0) press_enter; return ;;
+            0) return ;;
             s)
                 # Start (also start caddy for trojan)
                 [[ "$proto" == "trojan" ]] && systemctl start mizu-caddy 2>/dev/null
