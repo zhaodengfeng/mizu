@@ -177,7 +177,8 @@ cert_issue_dns() {
         export _MIZU_ACME_EMAIL
     fi
 
-    # Register account
+    # Clear old account data and register with correct email
+    rm -rf ~/.acme.sh/ca/ 2>/dev/null
     ~/.acme.sh/acme.sh --register-account -m "$_MIZU_ACME_EMAIL" --server letsencrypt 2>/dev/null
 
     # Issue with DNS
@@ -248,7 +249,8 @@ cert_issue() {
         export _MIZU_ACME_EMAIL
     fi
 
-    # Ensure acme.sh is registered
+    # Clear old account data and re-register with correct email
+    rm -rf ~/.acme.sh/ca/ 2>/dev/null
     ~/.acme.sh/acme.sh --register-account -m "$_MIZU_ACME_EMAIL" --server letsencrypt 2>/dev/null
 
     local issue_args=(
