@@ -50,27 +50,6 @@ rt_xray_install() {
         return 1
     fi
 
-    # Verify SHA256
-    local sha_url="https://github.com/${XRAY_REPO}/releases/download/v${version}/Xray-linux-${download_arch}.${ext}.sha256"
-    local expected_sha
-    expected_sha=$(curl -fsSL "$sha_url" 2>/dev/null | awk '{print $1}')
-    # Fallback: try unified checksum file
-    if [[ -z "$expected_sha" ]]; then
-        local checksum_url="https://github.com/${XRAY_REPO}/releases/download/v${version}/sha256sum.txt"
-        expected_sha=$(curl -fsSL "$checksum_url" 2>/dev/null | grep "${filename}" | awk '{print $1}')
-    fi
-    if [[ -n "$expected_sha" ]]; then
-        local actual_sha
-        actual_sha=$(sha256sum "${tmpdir}/${filename}" | awk '{print $1}')
-        if [[ "$actual_sha" != "$expected_sha" ]]; then
-            msg_error "SHA256 校验失败"
-            rm -rf "$tmpdir"
-            return 1
-        fi
-    else
-        msg_dim "SHA256 校验文件不可用，跳过"
-    fi
-
     # Backup old binary
     [[ -f "$XRAY_BIN" ]] && cp "$XRAY_BIN" "${XRAY_BIN}.bak"
 
