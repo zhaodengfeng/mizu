@@ -295,9 +295,9 @@ cli_uninstall_all() {
     msg_success "证书保留在 /etc/mizu/tls/ (不删除)"
     msg_success "acme.sh 程序保留 (不删除)"
     echo ""
-    printf "  输入 ${C_RED}\"uninstall\"${C_RESET} 确认: "
+    printf "  输入 ${C_RED}\"y\"${C_RESET} 确认卸载: "
     read -r confirm
-    if [[ "$confirm" != "uninstall" ]]; then
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
         msg_dim "已取消"
         return
     fi
@@ -477,7 +477,7 @@ tui_uninstall() {
     show_uninstall_confirm
     read -r confirm
 
-    if [[ "$confirm" == "uninstall" ]]; then
+    if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
         do_uninstall_all
         exit 0
     else
