@@ -31,15 +31,11 @@ prompt_reality_dest() {
     done
     local custom_idx=$((${#REALITY_DESTS[@]}+1))
     printf "${C_WHITE}  [%d] 自定义${C_RESET}\n" "$custom_idx" >&2
-    printf "${C_WHITE}  [0] 随机${C_RESET}\n" >&2
     echo "" >&2
     while true; do
-        printf "请选择 [0-%d]: " "$custom_idx" >&2
+        printf "请选择 [1-%d]: " "$custom_idx" >&2
         read -r choice
-        if [[ "$choice" == "0" ]]; then
-            echo "${REALITY_DESTS[$((RANDOM % ${#REALITY_DESTS[@]}))]}"
-            return 0
-        elif [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#REALITY_DESTS[@]} )); then
+        if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#REALITY_DESTS[@]} )); then
             echo "${REALITY_DESTS[$((choice-1))]}"
             return 0
         elif [[ "$choice" == "$custom_idx" ]]; then
