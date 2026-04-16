@@ -122,7 +122,7 @@ vless_reality_install() {
                     "security": "reality",
                     "realitySettings": {
                         "dest": ($dest_domain + ":" + ($dest_port | tostring)),
-                        "serverName": $dest_domain,
+                        "serverNames": [$dest_domain],
                         "privateKey": $private_key,
                         "shortIds": [$short_id]
                     }

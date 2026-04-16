@@ -451,7 +451,8 @@ state_set_protocol() {
 # ─── Service Start with Verification ─────────────────────────────────────────
 service_start_verified() {
     local proto="$1"
-    systemctl start "mizu-${proto}"
+    # Use restart: handles both fresh start and crash-looping services
+    systemctl restart "mizu-${proto}"
     sleep 2
     if ! systemctl is-active --quiet "mizu-${proto}" 2>/dev/null; then
         msg_error "${PROTO_NAMES[$proto]:-$proto} 启动失败"
