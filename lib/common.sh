@@ -229,7 +229,7 @@ EOF
 
 state_get() {
     local key="$1"
-    jq -r "$key // empty" "$STATE_FILE" 2>/dev/null
+    jq -r "$key // empty" "$STATE_FILE" 2>/dev/null || echo ""
 }
 
 state_set() {
@@ -262,7 +262,7 @@ state_del() {
 }
 
 state_list_protocols() {
-    jq -r '.protocols | keys[]' "$STATE_FILE" 2>/dev/null
+    jq -r '.protocols | keys[]' "$STATE_FILE" 2>/dev/null || true
 }
 
 state_protocol_exists() {
