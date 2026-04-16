@@ -27,7 +27,7 @@ prompt_reality_dest() {
     echo "" >&2
     local i=1
     for dest in "${REALITY_DESTS[@]}"; do
-        local name="${REALITY_DEST_NAMES[$dest]}"
+        local name="${REALITY_DEST_NAMES["$dest"]}"
         printf "${C_WHITE}  [%d] %-28s %s${C_RESET}\n" "$i" "$dest" "$name" >&2
         ((i++))
     done
