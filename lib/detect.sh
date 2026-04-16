@@ -7,7 +7,7 @@ _MIZU_DETECT_SH_LOADED=1
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 # ─── Required Dependencies ───────────────────────────────────────────────────
-DEPS=("curl" "jq" "openssl" "unzip" "iptables" "tar" "gzip")
+DEPS=("curl" "jq" "openssl" "unzip" "iptables" "tar" "gzip" "cron")
 
 # ─── Package Install ──────────────────────────────────────────────────────────
 pkg_install() {
@@ -17,7 +17,8 @@ pkg_install() {
     case "$pm" in
         apt)
             DEBIAN_FRONTEND=noninteractive \
-            apt-get install -y --no-install-recommends "${pkgs[@]}"
+            NEEDRESTART_MODE=a \
+            apt-get install -y --no-install-recommends "${pkgs[@]}" 2>&1 | grep -v -E "^(Scanning|Pending|Running kernel|Diagnostics|The currently|Restarting|Service restarts|No containers|No user|No VM|debconf)"
             ;;
         dnf)
             dnf install -y "${pkgs[@]}"
@@ -47,6 +48,7 @@ check_dep() {
         tar) command -v tar &>/dev/null ;;
         gzip) command -v gzip &>/dev/null ;;
         acme.sh) [[ -f ~/.acme.sh/acme.sh ]] ;;
+        cron) command -v crontab &>/dev/null ;;
         chrony) systemctl is-active chronyd &>/dev/null || systemctl is-active chrony &>/dev/null ;;
         systemd) pidof systemd &>/dev/null ;;
         *) command -v "$dep" &>/dev/null ;;
@@ -167,7 +169,12 @@ detect_environment() {
         msg_success "acme.sh:  已安装"
     else
         msg_info "安装 acme.sh (证书管理工具)..."
-        install_acme
+        if install_acme; then
+            msg_success "acme.sh:  已安装"
+        else
+            msg_error "acme.sh:  安装失败"
+            ((failed++))
+        fi
     fi
 
     # NTP
@@ -179,7 +186,8 @@ detect_environment() {
         if check_dep chrony; then
             msg_success "NTP:      已自动安装并启动"
         else
-            msg_warn "NTP:      安装失败，VMess 协议可能受影响"
+            msg_error "NTP:      安装失败"
+            ((failed++))
         fi
     fi
 

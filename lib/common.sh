@@ -213,16 +213,14 @@ state_init() {
             if [[ -f "$STATE_FILE" ]]; then
                 exit 0
             fi
-            cat > "$STATE_FILE" <<'EOF'
+            cat > "$STATE_FILE" <<EOF
 {
     "version": "1.0.0",
-    "installed": "",
+    "installed": "$(date +%Y-%m-%d)",
     "runtimes": {},
     "protocols": {}
 }
 EOF
-            jq --arg date "$(date +%Y-%m-%d)" '.installed = $date' "$STATE_FILE" > "${STATE_FILE}.tmp" \
-                && mv "${STATE_FILE}.tmp" "$STATE_FILE"
             chmod 600 "$STATE_FILE"
         ) 200>"${STATE_FILE}.lock"
     fi
