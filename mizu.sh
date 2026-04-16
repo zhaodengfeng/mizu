@@ -165,7 +165,17 @@ cli_install() {
         exit 1
     fi
     set -e
-    msg_dim "提示: 运行 mizu (无参数) 进入管理菜单"
+    # After successful install, enter TUI management menu
+    if [[ -t 0 ]]; then
+        echo ""
+        if prompt_yesno "是否进入管理菜单" "Y"; then
+            local ipv4
+            ipv4=$(detect_ipv4)
+            local arch
+            arch=$(detect_arch)
+            tui_main
+        fi
+    fi
 }
 
 cli_info() {
