@@ -16,17 +16,17 @@ pkg_install() {
     pm=$(detect_pkg_manager)
     case "$pm" in
         apt)
-            apt-get update -qq 2>/dev/null
-            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}" 2>/dev/null
+            DEBIAN_FRONTEND=noninteractive \
+            apt-get install -y --no-install-recommends "${pkgs[@]}"
             ;;
         dnf)
-            dnf install -y "${pkgs[@]}" 2>/dev/null
+            dnf install -y "${pkgs[@]}"
             ;;
         yum)
-            yum install -y "${pkgs[@]}" 2>/dev/null
+            yum install -y "${pkgs[@]}"
             ;;
         apk)
-            apk add --no-quiet "${pkgs[@]}" 2>/dev/null
+            apk add "${pkgs[@]}"
             ;;
         *)
             msg_error "不支持的包管理器: $pm"
@@ -73,7 +73,7 @@ install_chrony() {
     local pm
     pm=$(detect_pkg_manager)
     case "$pm" in
-        apt) DEBIAN_FRONTEND=noninteractive apt-get install -y -qq chrony ;;
+        apt) DEBIAN_FRONTEND=noninteractive apt-get install -y chrony ;;
         dnf) dnf install -y chrony ;;
         yum) yum install -y chrony ;;
         apk) apk add chrony ;;
@@ -148,8 +148,10 @@ detect_environment() {
     done
 
     if [[ ${#missing_pkgs[@]} -gt 0 ]]; then
-        msg_info "安装缺失依赖: ${missing_pkgs[*]}"
-        pkg_install "${missing_pkgs[@]}"
+        msg_info "正在安装: ${missing_pkgs[*]}"
+        echo ""
+        pkg_install "${missing_pkgs[@]}" || true
+        echo ""
         for dep in "${missing_pkgs[@]}"; do
             if check_dep "$dep"; then
                 msg_success "${dep}:  已自动安装"
