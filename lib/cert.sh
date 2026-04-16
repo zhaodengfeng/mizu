@@ -170,8 +170,15 @@ cert_issue_dns() {
     # Prompt for credentials
     prompt_dns_env "$provider"
 
+    # Prompt for email (only once per session)
+    if [[ -z "${_MIZU_ACME_EMAIL:-}" ]]; then
+        printf "${C_WHITE}请输入邮箱 (用于证书到期提醒): ${C_RESET}" >&2
+        read -r _MIZU_ACME_EMAIL
+        export _MIZU_ACME_EMAIL
+    fi
+
     # Register account
-    ~/.acme.sh/acme.sh --register-account --server letsencrypt 2>/dev/null
+    ~/.acme.sh/acme.sh --register-account -m "$_MIZU_ACME_EMAIL" --server letsencrypt 2>/dev/null
 
     # Issue with DNS
     if ~/.acme.sh/acme.sh --issue -d "$domain" --keylength ec-256 --dns "$provider" --server letsencrypt 2>/dev/null; then
@@ -234,8 +241,15 @@ cert_issue() {
     # Issue new certificate — try HTTP-01 first
     msg_warn "正在申请证书: ${domain}..."
 
+    # Prompt for email (only once per session)
+    if [[ -z "${_MIZU_ACME_EMAIL:-}" ]]; then
+        printf "${C_WHITE}请输入邮箱 (用于证书到期提醒): ${C_RESET}" >&2
+        read -r _MIZU_ACME_EMAIL
+        export _MIZU_ACME_EMAIL
+    fi
+
     # Ensure acme.sh is registered
-    ~/.acme.sh/acme.sh --register-account --server letsencrypt 2>/dev/null
+    ~/.acme.sh/acme.sh --register-account -m "$_MIZU_ACME_EMAIL" --server letsencrypt 2>/dev/null
 
     local issue_args=(
         --issue
@@ -295,7 +309,7 @@ cert_issue() {
             2)
                 msg_warn "尝试 ZeroSSL..."
                 local zerossl_output
-                ~/.acme.sh/acme.sh --register-account --server zerossl 2>/dev/null
+                ~/.acme.sh/acme.sh --register-account -m "${_MIZU_ACME_EMAIL:-}" --server zerossl 2>/dev/null
                 zerossl_output=$(~/.acme.sh/acme.sh --issue -d "$domain" --keylength ec-256 --server zerossl --standalone 2>&1)
                 if [[ $? -eq 0 ]]; then
                     msg_success "证书申请成功 (ZeroSSL)"

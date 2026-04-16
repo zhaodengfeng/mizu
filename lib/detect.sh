@@ -61,7 +61,7 @@ install_acme() {
         return 0
     fi
     msg_warn "acme.sh: 未安装 → 安装中..."
-    curl -fsSL https://get.acme.sh | sh
+    curl -fsSL https://get.acme.sh | sh 2>/dev/null
     if [[ -f ~/.acme.sh/acme.sh ]]; then
         msg_success "acme.sh: 已自动安装"
         return 0
