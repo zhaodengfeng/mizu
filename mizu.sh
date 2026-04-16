@@ -587,10 +587,13 @@ mizu_self_update() {
 
 # ─── TUI — Check Updates (enhanced with self-update) ─────────────────────────
 tui_check_updates() {
+    msg_info "正在检查更新..."
+    echo ""
+
     # Check Mizu self first
     local mizu_latest=""
     if [[ "$MIZU_REPO" != "USER/mizu" ]]; then
-        mizu_latest=$(github_latest_tag "$MIZU_REPO" 2>/dev/null)
+        mizu_latest=$(github_latest_tag "$MIZU_REPO" 2>/dev/null) || true
     fi
 
     local updates=()
@@ -628,7 +631,7 @@ tui_check_updates() {
         [[ -z "$repo" ]] && continue
 
         local latest
-        latest=$(github_latest_tag "$repo" 2>/dev/null)
+        latest=$(github_latest_tag "$repo" 2>/dev/null) || true
         [[ -z "$latest" ]] && continue
 
         if [[ "$current" != "$latest" ]]; then
