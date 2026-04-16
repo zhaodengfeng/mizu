@@ -7,6 +7,24 @@ set -euo pipefail
 
 VERSION="26.4.16"
 MIZU_REPO="zhaodengfeng/mizu"
+
+# ─── Bootstrap: if running from process substitution (curl|bash), clone and re-exec ──
+if [[ "$0" == /dev/fd/* ]]; then
+    if ! command -v git >/dev/null 2>&1; then
+        echo "错误: 请先安装 git (apt install git / yum install git)" >&2
+        exit 1
+    fi
+    if [[ -d /opt/mizu ]]; then
+        echo "检测到已有安装，更新 /opt/mizu ..."
+        git -C /opt/mizu pull --ff-only 2>/dev/null || true
+    else
+        echo "克隆 Mizu 到 /opt/mizu ..."
+        git clone "https://github.com/${MIZU_REPO}.git" /opt/mizu
+    fi
+    echo "重新启动 Mizu ..."
+    exec bash /opt/mizu/mizu.sh "$@"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE_DIR="$(dirname "$SCRIPT_DIR")"
 
