@@ -108,7 +108,7 @@ shadowtls_install() {
     # Persist to share-links file
     mkdir -p /etc/mizu/share-links
     echo "$clash_config" > "/etc/mizu/share-links/${proto}.txt"
-    state_set_string ".protocols.${proto}.share_link" "Clash配置片段 (见 share-links/shadowtls.txt)"
+    state_set_string ".protocols.${proto}.share_link" "$clash_config"
 }
 
 shadowtls_regen() {
@@ -135,6 +135,7 @@ shadowtls_regen() {
     clash_config=$(gen_shadowtls_link "$ipv4")
     mkdir -p /etc/mizu/share-links
     echo "$clash_config" > "/etc/mizu/share-links/${proto}.txt"
+    state_set_string ".protocols.${proto}.share_link" "$clash_config"
 
     msg_success "凭证已重新生成"
 }
