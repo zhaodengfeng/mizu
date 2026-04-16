@@ -35,12 +35,16 @@ vless_reality_install() {
     local uuid
     uuid=$(gen_uuid)
     local key_output
-    key_output=$(/usr/local/bin/xray x25519 2>/dev/null)
+    key_output=$(/usr/local/bin/xray x25519 2>&1) || {
+        msg_error "xray x25519 执行失败"
+        return 1
+    }
     local private_key public_key
-    private_key=$(echo "$key_output" | grep "Private" | awk '{print $3}')
-    public_key=$(echo "$key_output" | grep "Public" | awk '{print $3}')
+    private_key=$(echo "$key_output" | grep -i "PrivateKey" | awk '{print $2}')
+    public_key=$(echo "$key_output" | grep -i "PublicKey" | awk '{print $3}')
     if [[ -z "$private_key" || -z "$public_key" ]]; then
-        msg_error "Reality 密钥生成失败"
+        msg_error "Reality 密钥解析失败"
+        msg_dim "xray x25519 输出: ${key_output}"
         return 1
     fi
     local short_id
@@ -135,12 +139,16 @@ vless_reality_regen() {
     local uuid
     uuid=$(gen_uuid)
     local key_output
-    key_output=$(/usr/local/bin/xray x25519 2>/dev/null)
+    key_output=$(/usr/local/bin/xray x25519 2>&1) || {
+        msg_error "xray x25519 执行失败"
+        return 1
+    }
     local private_key public_key
-    private_key=$(echo "$key_output" | grep "Private" | awk '{print $3}')
-    public_key=$(echo "$key_output" | grep "Public" | awk '{print $3}')
+    private_key=$(echo "$key_output" | grep -i "PrivateKey" | awk '{print $2}')
+    public_key=$(echo "$key_output" | grep -i "PublicKey" | awk '{print $3}')
     if [[ -z "$private_key" || -z "$public_key" ]]; then
-        msg_error "Reality 密钥生成失败"
+        msg_error "Reality 密钥解析失败"
+        msg_dim "xray x25519 输出: ${key_output}"
         return 1
     fi
     local short_id
