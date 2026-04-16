@@ -432,23 +432,12 @@ show_install_result() {
 # ─── QR Code Display ──────────────────────────────────────────────────────────
 show_qrcode() {
     local text="$1"
-    if ! command -v qrencode &>/dev/null; then
-        msg_info "安装 qrencode..."
-        local pm
-        pm=$(detect_pkg_manager)
-        case "$pm" in
-            apt) DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qrencode 2>/dev/null ;;
-            dnf) dnf install -y qrencode 2>/dev/null ;;
-            yum) yum install -y qrencode 2>/dev/null ;;
-            apk) apk add qrencode 2>/dev/null ;;
-        esac
-    fi
     if command -v qrencode &>/dev/null; then
         echo ""
         qrencode -t ANSIUTF8 -m 2 "$text"
         echo ""
     else
-        msg_warn "qrencode 安装失败，无法显示二维码"
+        msg_warn "qrencode 未安装，无法显示二维码"
     fi
 }
 

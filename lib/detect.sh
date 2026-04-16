@@ -7,7 +7,7 @@ _MIZU_DETECT_SH_LOADED=1
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 # ─── Required Dependencies ───────────────────────────────────────────────────
-DEPS=("curl" "jq" "openssl" "unzip" "iptables" "tar" "gzip" "cron")
+DEPS=("curl" "jq" "openssl" "unzip" "iptables" "tar" "gzip" "cron" "qrencode")
 
 # ─── Package Install ──────────────────────────────────────────────────────────
 pkg_install() {
@@ -49,6 +49,7 @@ check_dep() {
         gzip) command -v gzip &>/dev/null ;;
         acme.sh) [[ -f ~/.acme.sh/acme.sh ]] ;;
         cron) command -v crontab &>/dev/null ;;
+        qrencode) command -v qrencode &>/dev/null ;;
         chrony) systemctl is-active chronyd &>/dev/null || systemctl is-active chrony &>/dev/null ;;
         systemd) pidof systemd &>/dev/null ;;
         *) command -v "$dep" &>/dev/null ;;
