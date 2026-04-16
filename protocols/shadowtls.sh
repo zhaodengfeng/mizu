@@ -13,7 +13,7 @@ shadowtls_install() {
     msg_info ">>> 安装 ShadowTLS <<<"
     echo ""
 
-    # Get domain
+    # Get handshake domain (a real TLS server for handshake)
     local domain
     domain=$(prompt_domain)
 
@@ -22,20 +22,20 @@ shadowtls_install() {
     port=$(resolve_port 443 8443)
 
     # Step 1: Install sing-box
-    msg_step 1 3 "安装 sing-box..."
+    msg_step 1 2 "安装 sing-box..."
     rt_singbox_install || return 1
 
-    # Step 2: Certificate
-    msg_step 2 3 "检查证书..."
-    cert_issue "$domain" || return 1
-
-    # Step 3: Generate credentials & start
-    msg_step 3 3 "生成凭证并启动..."
+    # Step 2: Generate credentials & start
+    msg_step 2 2 "生成凭证并启动..."
 
     local st_password
     st_password=$(gen_password)
     local ss_password
     ss_password=$(gen_password)
+
+    # Handshake server: use the domain itself (must resolve to a real TLS server)
+    local handshake_server="$domain"
+    local handshake_port=443
 
     # ShadowTLS v3 + SS2022 inner
     mkdir -p "$proto_dir"
@@ -44,9 +44,8 @@ shadowtls_install() {
         --argjson port "$port" \
         --arg st_password "$st_password" \
         --arg ss_password "$ss_password" \
-        --arg domain "$domain" \
-        --arg cert "$(cert_fullchain "$domain")" \
-        --arg key "$(cert_key "$domain")" \
+        --arg handshake_server "$handshake_server" \
+        --argjson handshake_port "$handshake_port" \
         '{
             "inbounds": [{
                 "type": "shadowtls",
@@ -54,11 +53,10 @@ shadowtls_install() {
                 "listen": "::",
                 "listen_port": $port,
                 "version": 3,
-                "password": $st_password,
-                "tls": {
-                    "server_name": $domain,
-                    "certificate_path": $cert,
-                    "key_path": $key
+                "users": [{"name": "mizu", "password": $st_password}],
+                "handshake": {
+                    "server": $handshake_server,
+                    "server_port": $handshake_port
                 },
                 "detour": "ss-in"
             }, {
@@ -70,7 +68,7 @@ shadowtls_install() {
                 "password": $ss_password
             }],
             "outbounds": [{"type": "direct", "tag": "direct"}]
-        }' > "${proto_dir}/config.json"
+        }' > "${proto_dir}/config.json" || { msg_error "配置文件生成失败"; return 1; }
 
     service_create "$proto" "/usr/local/bin/sing-box" "run -c ${proto_dir}/config.json" || return 1
     service_start_verified "$proto" || return 1
@@ -122,7 +120,7 @@ shadowtls_regen() {
     ss_password=$(gen_password)
 
     jq --arg st "$st_password" --arg ss "$ss_password" \
-        '.inbounds[0].password = $st | .inbounds[1].password = $ss' \
+        '.inbounds[0].users[0].password = $st | .inbounds[1].password = $ss' \
         "${proto_dir}/config.json" > "${proto_dir}/config.json.tmp" \
         && mv "${proto_dir}/config.json.tmp" "${proto_dir}/config.json"
 
@@ -148,10 +146,6 @@ shadowtls_uninstall() {
     msg_warn "正在卸载 ShadowTLS..."
     service_remove "$proto"
     rm -rf "$proto_dir"
-
-    local domain
-    domain=$(state_get ".protocols.${proto}.domain")
-    cert_ref_del "$domain"
 
     state_del ".protocols.${proto}"
     msg_success "ShadowTLS 已卸载"
