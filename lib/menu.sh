@@ -158,10 +158,8 @@ show_protocol_detail() {
 
     echo ""
     msg_separator
-    printf "${C_WHITE}  [s] 启动  [t] 停止  [r] 重启${C_RESET}\n"
-    printf "${C_WHITE}  [g] 重新生成凭证${C_RESET}\n"
-    printf "${C_WHITE}  [d] 卸载此协议${C_RESET}\n"
-    printf "${C_WHITE}  [C] 复制分享链接${C_RESET}\n"
+    printf "${C_WHITE}  [s] 启动  [t] 停止  [r] 重启  [d] 卸载${C_RESET}\n"
+    printf "${C_WHITE}  [g] 重新生成凭证  [Q] 显示二维码${C_RESET}\n"
     printf "${C_WHITE}  [0] 返回列表${C_RESET}\n"
     echo ""
     printf "请选择: "

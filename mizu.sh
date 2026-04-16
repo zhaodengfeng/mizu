@@ -450,11 +450,12 @@ tui_protocol_detail() {
                     return
                 fi
                 ;;
-            C)
+            Q|q)
                 local share_link
                 share_link=$(state_get ".protocols.${proto}.share_link")
                 if [[ -n "$share_link" && "$share_link" != "null" ]]; then
-                    copy_to_clipboard "$share_link" && msg_success "已复制到剪贴板"
+                    show_qrcode "$share_link"
+                    press_enter
                 else
                     msg_warn "无分享链接"
                 fi
