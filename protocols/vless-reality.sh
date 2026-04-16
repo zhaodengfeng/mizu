@@ -152,7 +152,7 @@ vless_reality_install() {
             "port": $port, "status": "running", "share_link": $link,
             "credential": {
                 "uuid": $uuid, "privateKey": $private_key, "publicKey": $public_key,
-                "shortId": $shortId, "dest": $dest, "serverName": $serverName, "fingerprint": $fingerprint
+                "shortId": $short_id, "dest": $dest, "serverName": $serverName, "fingerprint": $fingerprint
             }
         }') || { msg_error "状态数据生成失败"; return 1; }
 
