@@ -306,17 +306,17 @@ prompt_domain() {
             echo "$MIZU_DOMAIN"
             return 0
         fi
-        msg_error "MIZU_DOMAIN 域名格式无效: $MIZU_DOMAIN"
+        msg_error "MIZU_DOMAIN 域名格式无效: $MIZU_DOMAIN" >&2
     fi
     local domain=""
     while true; do
-        echo -ne "${C_WHITE}请输入域名: ${C_RESET}"
+        printf "${C_WHITE}请输入域名: ${C_RESET}" >&2
         read -r domain
         if validate_domain "$domain"; then
             echo "$domain"
             return 0
         fi
-        msg_error "域名格式无效，请重新输入"
+        msg_error "域名格式无效，请重新输入" >&2
     done
 }
 

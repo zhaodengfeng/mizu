@@ -102,19 +102,19 @@ acme_register() {
 
 # ─── Interactive DNS provider selection ──────────────────────────────────────
 prompt_dns_provider() {
-    msg_info "选择 DNS 验证方式"
-    echo ""
-    printf "${C_WHITE}  [1] Cloudflare${C_RESET}\n"
-    printf "${C_WHITE}  [2] 阿里云 DNS${C_RESET}\n"
-    printf "${C_WHITE}  [3] DNSPod (腾讯云)${C_RESET}\n"
-    printf "${C_WHITE}  [4] ClouDNS${C_RESET}\n"
-    printf "${C_WHITE}  [5] LuaDNS${C_RESET}\n"
-    printf "${C_WHITE}  [6] GoDaddy${C_RESET}\n"
-    printf "${C_WHITE}  [7] Namecheap${C_RESET}\n"
-    printf "${C_WHITE}  [8] AWS Route53${C_RESET}\n"
-    printf "${C_WHITE}  [0] 返回${C_RESET}\n"
-    echo ""
-    printf "请选择: "
+    msg_info "选择 DNS 验证方式" >&2
+    echo "" >&2
+    printf "${C_WHITE}  [1] Cloudflare${C_RESET}\n" >&2
+    printf "${C_WHITE}  [2] 阿里云 DNS${C_RESET}\n" >&2
+    printf "${C_WHITE}  [3] DNSPod (腾讯云)${C_RESET}\n" >&2
+    printf "${C_WHITE}  [4] ClouDNS${C_RESET}\n" >&2
+    printf "${C_WHITE}  [5] LuaDNS${C_RESET}\n" >&2
+    printf "${C_WHITE}  [6] GoDaddy${C_RESET}\n" >&2
+    printf "${C_WHITE}  [7] Namecheap${C_RESET}\n" >&2
+    printf "${C_WHITE}  [8] AWS Route53${C_RESET}\n" >&2
+    printf "${C_WHITE}  [0] 返回${C_RESET}\n" >&2
+    echo "" >&2
+    printf "请选择: " >&2
 
     local dns_providers=("cloudflare" "dns_ali" "dns_dp" "dns_cloudns" "dns_lua" "dns_gd" "dns_namecheap" "dns_route53")
 
