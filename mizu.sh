@@ -385,8 +385,17 @@ tui_install_protocol() {
             [1-9])
                 local idx=$((choice - 1))
                 local proto="${PROTO_ORDER[$idx]}"
-                if [[ -n "$proto" && -f "${PROTO_SCRIPTS[$proto]}" ]]; then
-                    "${PROTO_INSTALL_FUNC[$proto]}"
+                if [[ -z "$proto" ]]; then
+                    msg_error "无效的协议索引: $idx"
+                    press_enter
+                elif [[ ! -f "${PROTO_SCRIPTS[$proto]}" ]]; then
+                    msg_error "协议脚本不存在: ${PROTO_SCRIPTS[$proto]}"
+                    press_enter
+                else
+                    "${PROTO_INSTALL_FUNC[$proto]}" || {
+                        msg_error "安装 ${PROTO_NAMES[$proto]:-$proto} 失败"
+                        press_enter
+                    }
                 fi
                 ;;
             *) ;;
