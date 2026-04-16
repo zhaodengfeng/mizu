@@ -413,6 +413,9 @@ tui_manage_protocols() {
 tui_protocol_detail() {
     local proto="$1"
 
+    # Flush any pending input
+    while read -r -t 0.1 2>/dev/null; do true; done
+
     while true; do
         show_protocol_detail "$proto"
         read -r -n1 choice
