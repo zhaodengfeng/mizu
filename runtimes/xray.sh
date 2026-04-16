@@ -68,7 +68,7 @@ rt_xray_install() {
             return 1
         fi
     else
-        msg_warn "SHA256 校验文件不可用，跳过完整性验证"
+        msg_dim "SHA256 校验文件不可用，跳过"
     fi
 
     # Backup old binary
