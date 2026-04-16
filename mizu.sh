@@ -165,6 +165,7 @@ cli_install() {
         exit 1
     fi
     set -e
+    msg_dim "提示: 运行 mizu (无参数) 进入管理菜单"
 }
 
 cli_info() {

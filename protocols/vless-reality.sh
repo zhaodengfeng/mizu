@@ -140,18 +140,23 @@ vless_reality_install() {
     local ipv4
     ipv4=$(detect_ipv4)
     local fingerprint="chrome"
-    local share_link="vless://${uuid}@${ipv4}:${port}?encryption=none&security=reality&sni=${dest_domain}&fp=${fingerprint}&pbk=$(url_encode "$public_key")&sid=${short_id}&type=tcp&flow=xtls-rprx-vision#Mizu-VLESS-Reality"
+    local encoded_pubkey
+    encoded_pubkey=$(url_encode "$public_key")
+    local share_link="vless://${uuid}@${ipv4}:${port}?encryption=none&security=reality&sni=${dest_domain}&fp=${fingerprint}&pbk=${encoded_pubkey}&sid=${short_id}&type=tcp&flow=xtls-rprx-vision#Mizu-VLESS-Reality"
 
-    state_set_protocol "$proto" "$(jq -n \
+    local state_json
+    state_json=$(jq -n \
         --arg port "$port" --arg uuid "$uuid" --arg private_key "$private_key" \
         --arg public_key "$public_key" --arg short_id "$short_id" --arg dest "$dest" \
         --arg serverName "$dest_domain" --arg fingerprint "$fingerprint" --arg link "$share_link" '{
             "port": $port, "status": "running", "share_link": $link,
             "credential": {
                 "uuid": $uuid, "privateKey": $private_key, "publicKey": $public_key,
-                "shortId": $short_id, "dest": $dest, "serverName": $serverName, "fingerprint": $fingerprint
+                "shortId": $shortId, "dest": $dest, "serverName": $serverName, "fingerprint": $fingerprint
             }
-        }')"
+        }') || { msg_error "状态数据生成失败"; return 1; }
+
+    state_set_protocol "$proto" "$state_json"
 
     # Show result
     echo ""
