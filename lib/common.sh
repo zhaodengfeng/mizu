@@ -463,12 +463,13 @@ state_set_protocol() {
 service_start_verified() {
     local proto="$1"
     systemctl start "mizu-${proto}" 2>/dev/null
-    sleep 1
+    sleep 2
     if ! systemctl is-active --quiet "mizu-${proto}" 2>/dev/null; then
         msg_error "${PROTO_NAMES[$proto]:-$proto} 启动失败"
         journalctl -u "mizu-${proto}" --no-pager -n 10 2>/dev/null
         return 1
     fi
+    msg_success "${PROTO_NAMES[$proto]:-$proto} 已启动"
     return 0
 }
 
