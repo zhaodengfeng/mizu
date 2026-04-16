@@ -22,7 +22,7 @@ if [[ "$0" == /dev/fd/* ]]; then
         git clone "https://github.com/${MIZU_REPO}.git" /opt/mizu --quiet
     fi
     echo "启动 Mizu ..."
-    exec bash /opt/mizu/mizu.sh "$@" </dev/tty
+    exec bash /opt/mizu/mizu.sh "$@" </dev/tty >/dev/tty 2>&1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
