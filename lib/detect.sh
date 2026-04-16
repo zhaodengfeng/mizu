@@ -16,8 +16,8 @@ pkg_install() {
     pm=$(detect_pkg_manager)
     case "$pm" in
         apt)
-            apt-get update -qq
-            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${pkgs[@]}" 2>/dev/null
+            apt-get update -qq 2>/dev/null
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}" 2>/dev/null
             ;;
         dnf)
             dnf install -y "${pkgs[@]}" 2>/dev/null
