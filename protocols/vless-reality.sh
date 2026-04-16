@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Mizu — VLESS + Reality protocol (Xray)
 
-# Reality dest candidates (same ASN, no CDN)
+# Reality dest candidates (TLS 1.3 + H2, no CDN, major brands)
 REALITY_DESTS=(
     "www.microsoft.com:443"
     "www.apple.com:443"
     "gateway.icloud.com:443"
+    "dl.google.com:443"
     "www.amazon.com:443"
-    "www.samsung.com:443"
+    "addons.mozilla.org:443"
 )
 
 vless_reality_install() {
@@ -93,9 +94,9 @@ vless_reality_install() {
                 }
             }],
             "outbounds": [{"protocol": "freedom", "settings": {}}]
-        }' > "${proto_dir}/config.json"
+        }' > "${proto_dir}/config.json" || { msg_error "配置文件生成失败"; return 1; }
 
-    service_create "$proto" "/usr/local/bin/xray" "run -config ${proto_dir}/config.json" || return 1
+    service_create "$proto" "/usr/local/bin/xray" "run -config ${proto_dir}/config.json" || { msg_error "服务创建失败"; return 1; }
     service_start_verified "$proto" || return 1
     service_enable "$proto" || true
     msg_success "VLESS+Reality 已启动 (端口 ${port})"

@@ -158,10 +158,13 @@ cli_install() {
         # We'll pass it through an env var
         export MIZU_DOMAIN="$domain"
     fi
+    # Disable set -e for install — functions handle errors with || return 1
+    set +e
     if ! "${PROTO_INSTALL_FUNC[$proto]}"; then
         msg_error "${PROTO_NAMES[$proto]:-$proto} 安装失败"
         exit 1
     fi
+    set -e
 }
 
 cli_info() {
@@ -815,6 +818,8 @@ main() {
     # Try CLI mode first
     if [[ $# -gt 0 ]]; then
         mizu_init
+        # ERR trap: show exactly where CLI crashes (instead of silent exit)
+        trap 'msg_error "出错: ${BASH_SOURCE[0]} 第 ${LINENO} 行: ${BASH_COMMAND}"' ERR
         parse_cli "$@"
         exit $?
     fi
