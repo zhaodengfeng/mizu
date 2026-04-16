@@ -31,7 +31,7 @@ shadowtls_install() {
     local st_password
     st_password=$(gen_password)
     local ss_password
-    ss_password=$(gen_password)
+    ss_password=$(gen_base64 32)
 
     # Handshake server: use the domain itself (must resolve to a real TLS server)
     local handshake_server="$domain"
