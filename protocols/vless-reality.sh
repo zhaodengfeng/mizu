@@ -11,13 +11,13 @@ REALITY_DESTS=(
     "addons.mozilla.org:443"
 )
 
-declare -A REALITY_DEST_NAMES=(
-    ["www.microsoft.com:443"]="Microsoft"
-    ["www.apple.com:443"]="Apple"
-    ["gateway.icloud.com:443"]="Apple iCloud"
-    ["dl.google.com:443"]="Google"
-    ["www.amazon.com:443"]="Amazon"
-    ["addons.mozilla.org:443"]="Mozilla"
+REALITY_DEST_LABELS=(
+    "Microsoft"
+    "Apple"
+    "Apple iCloud"
+    "Google"
+    "Amazon"
+    "Mozilla"
 )
 
 # ─── Prompt user to pick a Reality dest ───────────────────────────────────────
@@ -25,16 +25,14 @@ prompt_reality_dest() {
     echo "" >&2
     msg_info "选择伪装目标" >&2
     echo "" >&2
-    local i=1
-    for dest in "${REALITY_DESTS[@]}"; do
-        local name="${REALITY_DEST_NAMES["$dest"]}"
-        printf "${C_WHITE}  [%d] %-28s %s${C_RESET}\n" "$i" "$dest" "$name" >&2
-        ((i++))
+    local i
+    for ((i=0; i<${#REALITY_DESTS[@]}; i++)); do
+        printf "${C_WHITE}  [%d] %-28s %s${C_RESET}\n" "$((i+1))" "${REALITY_DESTS[$i]}" "${REALITY_DEST_LABELS[$i]}" >&2
     done
     printf "${C_WHITE}  [0] 随机${C_RESET}\n" >&2
     echo "" >&2
     while true; do
-        printf "请选择 [0-%d]: " "$((i-1))" >&2
+        printf "请选择 [0-%d]: " "${#REALITY_DESTS[@]}" >&2
         read -r choice
         if [[ "$choice" == "0" ]]; then
             echo "${REALITY_DESTS[$((RANDOM % ${#REALITY_DESTS[@]}))]}"
