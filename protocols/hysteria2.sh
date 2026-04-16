@@ -119,7 +119,7 @@ EOF
 
     service_create "$proto" "/usr/local/bin/hysteria" "server -c ${proto_dir}/config.yaml" || return 1
     service_start_verified "$proto" || return 1
-    service_enable "$proto"
+    service_enable "$proto" || true
 
     # Save state
     local ipv4

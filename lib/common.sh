@@ -451,11 +451,14 @@ state_set_protocol() {
 # ─── Service Start with Verification ─────────────────────────────────────────
 service_start_verified() {
     local proto="$1"
-    systemctl start "mizu-${proto}" 2>/dev/null
+    systemctl start "mizu-${proto}"
     sleep 2
     if ! systemctl is-active --quiet "mizu-${proto}" 2>/dev/null; then
         msg_error "${PROTO_NAMES[$proto]:-$proto} 启动失败"
-        journalctl -u "mizu-${proto}" --no-pager -n 10 2>/dev/null
+        msg_dim "最近日志:"
+        journalctl -u "mizu-${proto}" --no-pager -n 15 2>/dev/null | while IFS= read -r line; do
+            printf "  %s\n" "$line"
+        done
         return 1
     fi
     msg_success "${PROTO_NAMES[$proto]:-$proto} 已启动"

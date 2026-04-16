@@ -74,7 +74,7 @@ shadowtls_install() {
 
     service_create "$proto" "/usr/local/bin/sing-box" "run -c ${proto_dir}/config.json" || return 1
     service_start_verified "$proto" || return 1
-    service_enable "$proto"
+    service_enable "$proto" || true
     msg_success "ShadowTLS 已启动 (端口 ${port})"
 
     # Save state

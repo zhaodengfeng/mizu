@@ -97,7 +97,7 @@ vless_reality_install() {
 
     service_create "$proto" "/usr/local/bin/xray" "run -config ${proto_dir}/config.json" || return 1
     service_start_verified "$proto" || return 1
-    service_enable "$proto"
+    service_enable "$proto" || true
     msg_success "VLESS+Reality 已启动 (端口 ${port})"
 
     # Save state

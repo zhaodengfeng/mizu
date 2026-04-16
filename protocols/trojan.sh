@@ -93,7 +93,7 @@ trojan_install() {
     service_create "$proto" "/usr/local/bin/xray" "run -config ${proto_dir}/config.json" \
         "after=mizu-caddy.service" "wants=mizu-caddy.service" || return 1
     service_start_verified "$proto" || return 1
-    service_enable "$proto"
+    service_enable "$proto" || true
 
     msg_success "Xray 已启动 (端口 ${port})"
     msg_success "Fallback → Caddy:8080"

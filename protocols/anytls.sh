@@ -61,7 +61,7 @@ anytls_install() {
 
     service_create "$proto" "/usr/local/bin/sing-box" "run -c ${proto_dir}/config.json" || return 1
     service_start_verified "$proto" || return 1
-    service_enable "$proto"
+    service_enable "$proto" || true
 
     # Save state
     local ipv4

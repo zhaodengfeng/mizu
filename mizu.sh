@@ -158,7 +158,10 @@ cli_install() {
         # We'll pass it through an env var
         export MIZU_DOMAIN="$domain"
     fi
-    "${PROTO_INSTALL_FUNC[$proto]}"
+    if ! "${PROTO_INSTALL_FUNC[$proto]}"; then
+        msg_error "${PROTO_NAMES[$proto]:-$proto} 安装失败"
+        exit 1
+    fi
 }
 
 cli_info() {

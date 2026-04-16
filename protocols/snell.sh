@@ -42,7 +42,7 @@ EOF
 
     service_create "$proto" "/usr/local/bin/snell-server" "-c ${proto_dir}/snell-server.conf" || return 1
     service_start_verified "$proto" || return 1
-    service_enable "$proto"
+    service_enable "$proto" || true
 
     # Save state
     state_set_protocol "$proto" "$(jq -n --arg port "$port" --arg psk "$psk" --arg version "5" '{
