@@ -205,6 +205,12 @@ url_encode() {
 # ─── State Management ─────────────────────────────────────────────────────────
 STATE_FILE="/etc/mizu/state.json"
 
+# Convert jq dot-path to safe bracket notation for keys with hyphens
+# .protocols.vless-reality.credential.uuid → .protocols["vless-reality"].credential.uuid
+_jq_safe_path() {
+    echo "$1" | sed -E 's/\.([a-zA-Z0-9_]*-[a-zA-Z0-9_-]*)/["\1"]/g'
+}
+
 state_init() {
     if [[ ! -f "$STATE_FILE" ]]; then
         mkdir -p /etc/mizu
@@ -228,36 +234,40 @@ EOF
 }
 
 state_get() {
-    local key="$1"
-    jq -r "$key // empty" "$STATE_FILE" 2>/dev/null || echo ""
+    local key
+    key=$(_jq_safe_path "$1")
+    jq -r "${key} // empty" "$STATE_FILE" 2>/dev/null || echo ""
 }
 
 state_set() {
-    local key="$1"
+    local key
+    key=$(_jq_safe_path "$1")
     local value="$2"
     (
         flock -x 200
         local tmp="${STATE_FILE}.tmp"
-        jq --argjson v "$value" "$key = \$v" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+        jq --argjson v "$value" "${key} = \$v" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
     ) 200>"${STATE_FILE}.lock"
 }
 
 state_set_string() {
-    local key="$1"
+    local key
+    key=$(_jq_safe_path "$1")
     local value="$2"
     (
         flock -x 200
         local tmp="${STATE_FILE}.tmp"
-        jq --arg v "$value" "$key = \$v" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+        jq --arg v "$value" "${key} = \$v" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
     ) 200>"${STATE_FILE}.lock"
 }
 
 state_del() {
-    local key="$1"
+    local key
+    key=$(_jq_safe_path "$1")
     (
         flock -x 200
         local tmp="${STATE_FILE}.tmp"
-        jq "del($key)" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+        jq "del(${key})" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
     ) 200>"${STATE_FILE}.lock"
 }
 
