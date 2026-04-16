@@ -262,11 +262,17 @@ cert_issue() {
         issue_args+=(--standalone)
     fi
 
-    if ~/.acme.sh/acme.sh "${issue_args[@]}" 2>/dev/null; then
+    local cert_output
+    cert_output=$(~/.acme.sh/acme.sh "${issue_args[@]}" 2>&1)
+    if [[ $? -eq 0 ]]; then
         msg_success "证书申请成功 (HTTP-01)"
     else
-        # HTTP-01 failed — offer DNS-01
+        # HTTP-01 failed — show error and offer DNS-01
         msg_warn "HTTP-01 验证失败"
+        # Show last few lines of acme output for diagnosis
+        echo "$cert_output" | grep -i -E "error|fail|timeout|refused|connect|dns" | tail -3 | while read -r line; do
+            msg_dim "  $line"
+        done
         echo ""
         printf "${C_WHITE}  证书申请方式:${C_RESET}\n"
         printf "${C_WHITE}  [1] 改用 DNS-01 验证 (推荐)${C_RESET}\n"
@@ -288,11 +294,16 @@ cert_issue() {
                 ;;
             2)
                 msg_warn "尝试 ZeroSSL..."
+                local zerossl_output
                 ~/.acme.sh/acme.sh --register-account -m mizu@local --server zerossl 2>/dev/null
-                if ~/.acme.sh/acme.sh --issue -d "$domain" --keylength ec-256 --server zerossl --standalone 2>/dev/null; then
+                zerossl_output=$(~/.acme.sh/acme.sh --issue -d "$domain" --keylength ec-256 --server zerossl --standalone 2>&1)
+                if [[ $? -eq 0 ]]; then
                     msg_success "证书申请成功 (ZeroSSL)"
                 else
-                    msg_error "证书申请失败"
+                    msg_error "ZeroSSL 申请失败"
+                    echo "$zerossl_output" | grep -i -E "error|fail|timeout|refused|connect" | tail -3 | while read -r line; do
+                        msg_dim "  $line"
+                    done
                     return 1
                 fi
                 ;;
