@@ -206,13 +206,13 @@ STATE_FILE="/etc/mizu/state.json"
 
 state_init() {
     if [[ ! -f "$STATE_FILE" ]]; then
+        mkdir -p /etc/mizu
         (
             flock -x 200
             # Double-check after acquiring lock (another process may have created it)
             if [[ -f "$STATE_FILE" ]]; then
                 exit 0
             fi
-            mkdir -p /etc/mizu
             cat > "$STATE_FILE" <<'EOF'
 {
     "version": "1.0.0",
