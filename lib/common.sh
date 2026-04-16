@@ -14,6 +14,7 @@ C_GREEN='\033[0;32m'
 C_YELLOW='\033[0;33m'
 C_RED='\033[1;31m'
 C_MAGENTA='\033[0;35m'
+C_BLUE='\033[1;34m'
 C_BOLD='\033[1m'
 C_RESET='\033[0m'
 
@@ -24,7 +25,7 @@ msg_warn()    { printf "${C_YELLOW}  ○ %b${C_RESET}\n" "$*"; }
 msg_error()   { printf "${C_RED}  ✗ %b${C_RESET}\n" "$*"; }
 msg_step()    { printf "${C_WHITE}[%d/%d] %b${C_RESET}\n" "$1" "$2" "$3"; }
 msg_dim()     { printf "${C_GRAY}%b${C_RESET}\n" "$*"; }
-msg_link()    { printf "${C_MAGENTA}  %b${C_RESET}\n" "$*"; }
+msg_link()    { printf "${C_CYAN}  %b${C_RESET}\n" "$*"; }
 msg_running() { printf "${C_GREEN}●运行${C_RESET}"; }
 msg_stopped() { printf "${C_RED}○停止${C_RESET}"; }
 
@@ -417,9 +418,37 @@ show_install_result() {
         echo ""
     fi
     if [[ -t 0 ]]; then
-        printf "${C_GRAY}  [回车] 返回主菜单  [C] 复制链接${C_RESET}\n"
+        printf "${C_GRAY}  [回车] 返回主菜单  [Q] 显示二维码${C_RESET}\n"
         read -r -n1 action
-        [[ "$action" == [cC] ]] && copy_to_clipboard "$share_link" && msg_success "已复制到剪贴板"
+        echo ""
+        if [[ "$action" == [qQ] ]]; then
+            show_qrcode "$share_link"
+            echo ""
+            press_enter
+        fi
+    fi
+}
+
+# ─── QR Code Display ──────────────────────────────────────────────────────────
+show_qrcode() {
+    local text="$1"
+    if ! command -v qrencode &>/dev/null; then
+        msg_info "安装 qrencode..."
+        local pm
+        pm=$(detect_pkg_manager)
+        case "$pm" in
+            apt) DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qrencode 2>/dev/null ;;
+            dnf) dnf install -y qrencode 2>/dev/null ;;
+            yum) yum install -y qrencode 2>/dev/null ;;
+            apk) apk add qrencode 2>/dev/null ;;
+        esac
+    fi
+    if command -v qrencode &>/dev/null; then
+        echo ""
+        qrencode -t ANSIUTF8 -m 2 "$text"
+        echo ""
+    else
+        msg_warn "qrencode 安装失败，无法显示二维码"
     fi
 }
 
