@@ -18,7 +18,7 @@ PROTO_NAMES=(
     ["anytls"]="AnyTLS"
     ["hysteria2"]="Hysteria 2"
     ["shadowsocks"]="Shadowsocks 2022"
-    ["snell"]="Snell v4"
+    ["snell"]="Snell v5"
 )
 
 PROTO_DESCS=(

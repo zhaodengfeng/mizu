@@ -6,7 +6,7 @@ _MIZU_RT_SNELL_LOADED=1
 
 # Snell doesn't have public GitHub releases - download URL is fixed
 SNELL_BIN="/usr/local/bin/snell-server"
-SNELL_VERSION="4.1.1"
+SNELL_VERSION="5.0.1"
 
 rt_snell_install() {
     local arch

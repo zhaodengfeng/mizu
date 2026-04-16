@@ -33,7 +33,7 @@
 | **sing-box** | AnyTLS | sing-box |
 | **Hysteria** | Hysteria 2 | hysteria（端口跳跃 / Salamander） |
 | **SS-Rust** | Shadowsocks 2022 | shadowsocks-rust |
-| **Snell** | Snell v4 | snell-server |
+| **Snell** | Snell v5 | snell-server |
 
 </div>
 
