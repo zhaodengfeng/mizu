@@ -160,6 +160,9 @@ show_protocol_detail() {
     msg_separator
     printf "${C_WHITE}  [s] 启动  [t] 停止  [r] 重启  [d] 卸载${C_RESET}\n"
     printf "${C_WHITE}  [g] 重新生成凭证  [Q] 显示二维码${C_RESET}\n"
+    if [[ -n "${PROTO_SETTINGS_FUNC[$proto]:-}" ]]; then
+        printf "${C_WHITE}  [c] 协议配置${C_RESET}\n"
+    fi
     printf "${C_WHITE}  [0] 返回列表${C_RESET}\n"
     echo ""
     printf "请选择: "

@@ -80,6 +80,79 @@ snell_regen() {
     msg_success "凭证已重新生成"
 }
 
+snell_settings() {
+    local proto="snell"
+    local proto_dir="/etc/mizu/${proto}"
+
+    while true; do
+        local current_dns current_ipv6
+        current_dns=$(state_get ".protocols.${proto}.credential.dns")
+        current_ipv6=$(state_get ".protocols.${proto}.credential.ipv6")
+        [[ -z "$current_dns" || "$current_dns" == "null" ]] && current_dns="8.8.8.8"
+        [[ -z "$current_ipv6" || "$current_ipv6" == "null" ]] && current_ipv6="false"
+
+        clear_screen
+        msg_info "Snell v5 — 配置"
+        echo ""
+        printf "  [1] DNS 服务器: %s\n" "$current_dns"
+        printf "  [2] IPv6: %s\n" "$current_ipv6"
+        printf "  [0] 返回\n"
+        echo ""
+        printf "请选择: "
+        read -r choice
+
+        case "$choice" in
+            0) return ;;
+            1)
+                echo ""
+                printf "  可选 DNS:\n"
+                printf "    [1] 8.8.8.8\n"
+                printf "    [2] 1.1.1.1\n"
+                printf "    [3] 自定义\n"
+                printf "  请选择: "
+                read -r dns_choice
+                local new_dns=""
+                case "$dns_choice" in
+                    1) new_dns="8.8.8.8" ;;
+                    2) new_dns="1.1.1.1" ;;
+                    3)
+                        printf "  输入 DNS 地址: "
+                        read -r new_dns
+                        ;;
+                    *) continue ;;
+                esac
+                if [[ -z "$new_dns" ]]; then
+                    msg_error "DNS 不能为空"
+                    press_enter
+                    continue
+                fi
+                # Update config: add or replace dns line
+                if grep -q "^dns " "${proto_dir}/snell-server.conf" 2>/dev/null; then
+                    sed -i "s|^dns = .*|dns = ${new_dns}|" "${proto_dir}/snell-server.conf"
+                else
+                    echo "dns = ${new_dns}" >> "${proto_dir}/snell-server.conf"
+                fi
+                state_set_string ".protocols.${proto}.credential.dns" "$new_dns"
+                service_restart "$proto"
+                msg_success "DNS 已设置为 ${new_dns}"
+                press_enter
+                ;;
+            2)
+                if [[ "$current_ipv6" == "false" ]]; then
+                    new_ipv6="true"
+                else
+                    new_ipv6="false"
+                fi
+                sed -i "s/ipv6 = .*/ipv6 = ${new_ipv6}/" "${proto_dir}/snell-server.conf"
+                state_set_string ".protocols.${proto}.credential.ipv6" "$new_ipv6"
+                service_restart "$proto"
+                msg_success "IPv6 已设置为 ${new_ipv6}"
+                press_enter
+                ;;
+        esac
+    done
+}
+
 snell_uninstall() {
     local proto="snell"
     local proto_dir="/etc/mizu/${proto}"

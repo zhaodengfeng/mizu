@@ -205,3 +205,64 @@ hysteria2_uninstall() {
     state_del ".protocols.${proto}"
     msg_success "Hysteria 2 已卸载"
 }
+
+hysteria2_settings() {
+    local proto="hysteria2"
+    local proto_dir="/etc/mizu/${proto}"
+
+    while true; do
+        local obfs_type
+        obfs_type=$(state_get ".protocols.${proto}.credential.obfs_type")
+        local obfs_status="关闭"
+        [[ -n "$obfs_type" && "$obfs_type" != "null" ]] && obfs_status="开启 ($obfs_type)"
+
+        clear_screen
+        msg_info "Hysteria 2 — 配置"
+        echo ""
+        printf "  [1] Salamander 混淆: %s\n" "$obfs_status"
+        printf "  [0] 返回\n"
+        echo ""
+        printf "请选择: "
+        read -r choice
+
+        case "$choice" in
+            0) return ;;
+            1)
+                if [[ -n "$obfs_type" && "$obfs_type" != "null" ]]; then
+                    # Disable Salamander
+                    msg_info "正在关闭 Salamander..."
+                    # Remove obfs block from YAML
+                    sed -i '/^obfs:/,/^[^ ]/{/^obfs:/d;/^  type:/d;/^  salamander:/d;/^    password:/d}' "${proto_dir}/config.yaml"
+                    state_set_string ".protocols.${proto}.credential.obfs_type" ""
+                    state_set_string ".protocols.${proto}.credential.obfs_password" ""
+                    service_restart "$proto"
+                    local ipv4
+                    ipv4=$(detect_ipv4)
+                    save_share_link "$proto" "$ipv4"
+                    msg_success "Salamander 已关闭"
+                else
+                    # Enable Salamander
+                    msg_info "正在开启 Salamander..."
+                    local obfs_password
+                    obfs_password=$(gen_base64 16)
+                    # Append obfs block to YAML
+                    cat >> "${proto_dir}/config.yaml" <<EOF
+
+obfs:
+  type: salamander
+  salamander:
+    password: ${obfs_password}
+EOF
+                    state_set_string ".protocols.${proto}.credential.obfs_type" "salamander"
+                    state_set_string ".protocols.${proto}.credential.obfs_password" "$obfs_password"
+                    service_restart "$proto"
+                    local ipv4
+                    ipv4=$(detect_ipv4)
+                    save_share_link "$proto" "$ipv4"
+                    msg_success "Salamander 已开启 (密码: ${obfs_password})"
+                fi
+                press_enter
+                ;;
+        esac
+    done
+}

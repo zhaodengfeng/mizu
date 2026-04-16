@@ -215,6 +215,72 @@ vless_reality_regen() {
     msg_success "凭证已重新生成"
 }
 
+vless_reality_settings() {
+    local proto="vless-reality"
+    local proto_dir="/etc/mizu/${proto}"
+
+    while true; do
+        local current_dest
+        current_dest=$(state_get ".protocols.${proto}.credential.dest")
+
+        clear_screen
+        msg_info "VLESS + Reality — 配置"
+        echo ""
+        printf "  [1] 伪装目标: %s\n" "${current_dest:---}"
+        printf "  [0] 返回\n"
+        echo ""
+        printf "请选择: "
+        read -r choice
+
+        case "$choice" in
+            0) return ;;
+            1)
+                local new_dest
+                new_dest=$(prompt_reality_dest)
+                if [[ "$new_dest" == "$current_dest" ]]; then
+                    msg_dim "伪装目标未变更"
+                    press_enter
+                    continue
+                fi
+                local new_domain="${new_dest%%:*}"
+                local new_port="${new_dest##*:}"
+
+                # Update config
+                jq --arg dest_domain "$new_domain" --argjson dest_port "$new_port" \
+                    '.inbounds[0].streamSettings.realitySettings.dest = ($dest_domain + ":" + ($dest_port | tostring)) | .inbounds[0].streamSettings.realitySettings.serverNames = [$dest_domain]' \
+                    "${proto_dir}/config.json" > "${proto_dir}/config.json.tmp" \
+                    && mv "${proto_dir}/config.json.tmp" "${proto_dir}/config.json"
+
+                # Update state
+                state_set_string ".protocols.${proto}.credential.dest" "$new_dest"
+                state_set_string ".protocols.${proto}.credential.serverName" "$new_domain"
+
+                service_restart "$proto"
+
+                # Regenerate share link
+                local ipv4
+                ipv4=$(detect_ipv4)
+                local uuid public_key short_id fingerprint
+                uuid=$(state_get ".protocols.${proto}.credential.uuid")
+                public_key=$(state_get ".protocols.${proto}.credential.publicKey")
+                short_id=$(state_get ".protocols.${proto}.credential.shortId")
+                fingerprint=$(state_get ".protocols.${proto}.credential.fingerprint")
+                local encoded_pubkey
+                encoded_pubkey=$(url_encode "$public_key")
+                local port
+                port=$(state_get ".protocols.${proto}.port")
+                local share_link="vless://${uuid}@${ipv4}:${port}?encryption=none&security=reality&sni=${new_domain}&fp=${fingerprint}&pbk=${encoded_pubkey}&sid=${short_id}&type=tcp&flow=xtls-rprx-vision#Mizu-VLESS-Reality"
+                state_set_string ".protocols.${proto}.share_link" "$share_link"
+                mkdir -p /etc/mizu/share-links
+                echo "$share_link" > "/etc/mizu/share-links/${proto}.txt"
+
+                msg_success "伪装目标已切换为 ${new_dest}"
+                press_enter
+                ;;
+        esac
+    done
+}
+
 vless_reality_uninstall() {
     local proto="vless-reality"
     local proto_dir="/etc/mizu/${proto}"

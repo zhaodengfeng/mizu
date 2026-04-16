@@ -96,6 +96,70 @@ shadowsocks_regen() {
     msg_success "凭证已重新生成"
 }
 
+shadowsocks_settings() {
+    local proto="shadowsocks"
+    local proto_dir="/etc/mizu/${proto}"
+
+    while true; do
+        local current_mode
+        current_mode=$(jq -r '.mode // "tcp_and_udp"' "${proto_dir}/config.json" 2>/dev/null)
+
+        local mode_desc
+        case "$current_mode" in
+            tcp_and_udp) mode_desc="TCP + UDP" ;;
+            tcp_only)    mode_desc="仅 TCP" ;;
+            udp_only)    mode_desc="仅 UDP" ;;
+            *)           mode_desc="$current_mode" ;;
+        esac
+
+        clear_screen
+        msg_info "Shadowsocks 2022 — 配置"
+        echo ""
+        printf "  [1] 运行模式: %s\n" "$mode_desc"
+        printf "  [0] 返回\n"
+        echo ""
+        printf "请选择: "
+        read -r choice
+
+        case "$choice" in
+            0) return ;;
+            1)
+                echo ""
+                printf "  可选模式:\n"
+                printf "    [1] TCP + UDP (推荐)\n"
+                printf "    [2] 仅 TCP\n"
+                printf "    [3] 仅 UDP\n"
+                printf "  请选择: "
+                read -r mode_choice
+                local new_mode=""
+                case "$mode_choice" in
+                    1) new_mode="tcp_and_udp" ;;
+                    2) new_mode="tcp_only" ;;
+                    3) new_mode="udp_only" ;;
+                    *) continue ;;
+                esac
+                if [[ "$new_mode" == "$current_mode" ]]; then
+                    msg_dim "模式未变更"
+                    press_enter
+                    continue
+                fi
+                jq --arg m "$new_mode" '.mode = $m' "${proto_dir}/config.json" > "${proto_dir}/config.json.tmp" \
+                    && mv "${proto_dir}/config.json.tmp" "${proto_dir}/config.json"
+                state_set_string ".protocols.${proto}.credential.mode" "$new_mode"
+                service_restart "$proto"
+                local new_desc
+                case "$new_mode" in
+                    tcp_and_udp) new_desc="TCP + UDP" ;;
+                    tcp_only)    new_desc="仅 TCP" ;;
+                    udp_only)    new_desc="仅 UDP" ;;
+                esac
+                msg_success "模式已切换为 ${new_desc}"
+                press_enter
+                ;;
+        esac
+    done
+}
+
 shadowsocks_uninstall() {
     local proto="shadowsocks"
     local proto_dir="/etc/mizu/${proto}"

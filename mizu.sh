@@ -94,6 +94,13 @@ declare -A PROTO_UNINSTALL_FUNC=(
     ["snell"]="snell_uninstall"
 )
 
+declare -A PROTO_SETTINGS_FUNC=(
+    ["vless-reality"]="vless_reality_settings"
+    ["hysteria2"]="hysteria2_settings"
+    ["shadowsocks"]="shadowsocks_settings"
+    ["snell"]="snell_settings"
+)
+
 # ─── Load protocol scripts ──────────────────────────────────────────────────
 load_protocols() {
     for proto in "${!PROTO_SCRIPTS[@]}"; do
@@ -468,6 +475,11 @@ tui_protocol_detail() {
                     "${PROTO_UNINSTALL_FUNC[$proto]}"
                     press_enter
                     return
+                fi
+                ;;
+            c)
+                if [[ -n "${PROTO_SETTINGS_FUNC[$proto]:-}" ]]; then
+                    "${PROTO_SETTINGS_FUNC[$proto]}"
                 fi
                 ;;
             Q|q)
