@@ -422,7 +422,7 @@ tui_protocol_detail() {
         echo ""
 
         case "$choice" in
-            0) return ;;
+            0) press_enter; return ;;
             s)
                 # Start (also start caddy for trojan)
                 [[ "$proto" == "trojan" ]] && systemctl start mizu-caddy 2>/dev/null
