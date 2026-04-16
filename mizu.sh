@@ -639,8 +639,9 @@ tui_check_updates() {
 
         local latest
         latest=$(github_latest_tag "$repo" 2>/dev/null) || true
-        # Hysteria tags have 'app/' prefix — strip it
+        # Hysteria tags have 'app/' prefix — strip both app/ and leading v
         latest="${latest#app/}"
+        latest="${latest#v}"
         [[ -z "$latest" ]] && continue
 
         if [[ "$current" != "$latest" ]]; then
