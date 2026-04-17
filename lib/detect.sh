@@ -9,6 +9,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 # ─── Required Dependencies ───────────────────────────────────────────────────
 DEPS=("curl" "jq" "openssl" "unzip" "iptables" "tar" "gzip" "cron" "qrencode")
 
+# acme.sh isolated home directory
+ACME_HOME="/etc/mizu/acme"
+
 # ─── Package Install ──────────────────────────────────────────────────────────
 pkg_install() {
     local pkgs=("$@")
@@ -47,7 +50,7 @@ check_dep() {
         iptables) command -v iptables &>/dev/null ;;
         tar) command -v tar &>/dev/null ;;
         gzip) command -v gzip &>/dev/null ;;
-        acme.sh) [[ -f ~/.acme.sh/acme.sh ]] ;;
+        acme.sh) [[ -f "${ACME_HOME}/acme.sh" ]] ;;
         cron) command -v crontab &>/dev/null ;;
         qrencode) command -v qrencode &>/dev/null ;;
         chrony) systemctl is-active chronyd &>/dev/null || systemctl is-active chrony &>/dev/null ;;
@@ -57,14 +60,36 @@ check_dep() {
 }
 
 # ─── Install acme.sh ─────────────────────────────────────────────────────────
+ACME_VER="3.1.0"
+ACME_SHA256="a4215e5c62d4f41e3e3c50f2d4e06a22e5ff47f0160b59b3fc20db62cd9c43bc"
+
 install_acme() {
-    if [[ -f ~/.acme.sh/acme.sh ]]; then
+    if [[ -f "${ACME_HOME}/acme.sh" ]]; then
         return 0
     fi
-    msg_warn "acme.sh: 未安装 → 安装中..."
-    curl -fsSL https://get.acme.sh | sh 2>/dev/null
-    if [[ -f ~/.acme.sh/acme.sh ]]; then
-        msg_success "acme.sh: 已自动安装"
+    msg_warn "acme.sh: 未安装 → 安装中 (v${ACME_VER})..."
+
+    local tgz="/tmp/acme.sh-${ACME_VER}.tar.gz"
+    if ! download_file "https://github.com/acmesh-official/acme.sh/archive/refs/tags/${ACME_VER}.tar.gz" "$tgz"; then
+        msg_error "acme.sh: 下载失败"
+        return 1
+    fi
+
+    local actual
+    actual=$(sha256sum "$tgz" | awk '{print $1}')
+    if [[ "$actual" != "$ACME_SHA256" ]]; then
+        msg_error "acme.sh: SHA256 校验失败 (期望 ${ACME_SHA256:0:16}... 得到 ${actual:0:16}...)"
+        rm -f "$tgz"
+        return 1
+    fi
+
+    tar -xzf "$tgz" -C /tmp >/dev/null
+    ( cd "/tmp/acme.sh-${ACME_VER}" && ./acme.sh --install --home "${ACME_HOME}" >/dev/null 2>&1 )
+    rm -f "$tgz"
+    rm -rf "/tmp/acme.sh-${ACME_VER}"
+
+    if [[ -f "${ACME_HOME}/acme.sh" ]]; then
+        msg_success "acme.sh: 已自动安装 (隔离目录: ${ACME_HOME})"
         return 0
     fi
     msg_error "acme.sh: 安装失败"
@@ -161,6 +186,7 @@ detect_environment() {
             else
                 msg_error "${dep}:  安装失败"
                 ((failed++))
+                [[ "$dep" == "jq" ]] && msg_dim "  手动安装: apt install jq / yum install jq / apk add jq"
             fi
         done
     fi

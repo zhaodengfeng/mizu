@@ -80,10 +80,13 @@ rt_caddy_update() {
 }
 
 rt_caddy_remove() {
-    if state_protocol_exists "trojan"; then
-        msg_warn "Caddy 仍被 Trojan 使用，跳过删除"
-        return 0
-    fi
+    local caddy_protos=("trojan" "vless-vision" "vmess")
+    for p in "${caddy_protos[@]}"; do
+        if state_protocol_exists "$p"; then
+            msg_warn "Caddy 仍被 ${p} 使用，跳过删除"
+            return 0
+        fi
+    done
     rm -f "$CADDY_BIN"
     state_del ".runtimes.caddy"
     msg_success "Caddy 已删除"

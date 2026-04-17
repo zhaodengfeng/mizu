@@ -28,7 +28,7 @@ hysteria2_install() {
     # Step 3: Generate credentials
     msg_step 3 5 "生成凭证..."
     local password
-    password=$(gen_base64 32)
+    password=$(gen_base64url 32)
     msg_success "密码: ${password}"
 
     # Step 4: Port config
@@ -67,14 +67,10 @@ masquerade:
   proxy:
     url: https://news.yandex.com
     rewriteHost: true
-EOF
-
-    # Auth + QUIC
-    cat >> "${proto_dir}/config.yaml" <<EOF
 
 auth:
   type: password
-  password: ${password}
+  password: "${password}"
 
 quic:
   initStreamReceiveWindow: 8388608
@@ -97,7 +93,7 @@ EOF
 #!/bin/bash
 iptables -t nat -A PREROUTING -i ${iface} -p udp --dport ${start_port}:${end_port} -j REDIRECT --to-port ${port}
 EOF
-        chmod +x "/etc/mizu/iptables/${proto}.rules"
+        chmod 700 "/etc/mizu/iptables/${proto}.rules"
 
         # Create iptables restore service
         cat > /etc/systemd/system/mizu-iptables-${proto}.service <<EOF
@@ -150,12 +146,12 @@ hysteria2_regen() {
     local proto_dir="/etc/mizu/${proto}"
 
     local password
-    password=$(gen_base64 32)
+    password=$(gen_base64url 32)
 
     # Use awk to only replace the password in the auth section
     awk -v pw="$password" '
 /^auth:/ { in_auth=1; print; next }
-in_auth && /password:/ { print "  password: " pw; next }
+in_auth && /password:/ { print "  password: \"" pw "\""; next }
 /^[^ ]/ { in_auth=0 }
 { print }
 ' "${proto_dir}/config.yaml" > "${proto_dir}/config.yaml.tmp" && mv "${proto_dir}/config.yaml.tmp" "${proto_dir}/config.yaml"
@@ -244,14 +240,14 @@ hysteria2_settings() {
                     # Enable Salamander
                     msg_info "正在开启 Salamander..."
                     local obfs_password
-                    obfs_password=$(gen_base64 16)
+                    obfs_password=$(gen_base64url 16)
                     # Append obfs block to YAML
                     cat >> "${proto_dir}/config.yaml" <<EOF
 
 obfs:
   type: salamander
   salamander:
-    password: ${obfs_password}
+    password: "${obfs_password}"
 EOF
                     state_set_string ".protocols.${proto}.credential.obfs_type" "salamander"
                     state_set_string ".protocols.${proto}.credential.obfs_password" "$obfs_password"

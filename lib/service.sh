@@ -80,7 +80,7 @@ ${rw_paths}
 WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reload
+    systemctl daemon-reload --no-block 2>/dev/null || systemctl daemon-reload
 }
 
 # ─── Service control ─────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ service_remove() {
     systemctl stop "$service_name" 2>/dev/null
     systemctl disable "$service_name" 2>/dev/null
     rm -f "/etc/systemd/system/${service_name}.service"
-    systemctl daemon-reload
+    systemctl daemon-reload --no-block 2>/dev/null || systemctl daemon-reload
 }
 
 # ─── Create Caddy service (special) ──────────────────────────────────────────
@@ -163,14 +163,16 @@ ReadWritePaths=/var/www/mizu /var/log/mizu /etc/mizu/caddy
 WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reload
+    systemctl daemon-reload --no-block 2>/dev/null || systemctl daemon-reload
 }
 
 # ─── Start all services ──────────────────────────────────────────────────────
 service_start_all() {
     local protocols
     protocols=$(state_list_protocols)
+    [[ -z "$protocols" ]] && return 0
     while IFS= read -r proto; do
+        [[ -z "$proto" ]] && continue
         service_start "$proto"
         service_enable "$proto"
     done <<< "$protocols"
@@ -193,7 +195,9 @@ service_stop_all() {
 service_remove_all() {
     local protocols
     protocols=$(state_list_protocols)
+    [[ -z "$protocols" ]] && return 0
     while IFS= read -r proto; do
+        [[ -z "$proto" ]] && continue
         service_remove "$proto"
     done <<< "$protocols"
     # Remove caddy service if exists

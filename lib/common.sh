@@ -7,16 +7,16 @@
 _MIZU_COMMON_SH_LOADED=1
 
 # ─── ANSI Colors ───────────────────────────────────────────────────────────────
-C_CYAN='\033[1;36m'
-C_WHITE='\033[1;37m'
-C_GRAY='\033[2;37m'
-C_GREEN='\033[0;32m'
-C_YELLOW='\033[0;33m'
-C_RED='\033[1;31m'
-C_MAGENTA='\033[0;35m'
-C_BLUE='\033[1;34m'
-C_BOLD='\033[1m'
-C_RESET='\033[0m'
+readonly C_CYAN='\033[1;36m'
+readonly C_WHITE='\033[1;37m'
+readonly C_GRAY='\033[2;37m'
+readonly C_GREEN='\033[0;32m'
+readonly C_YELLOW='\033[0;33m'
+readonly C_RED='\033[1;31m'
+readonly C_MAGENTA='\033[0;35m'
+readonly C_BLUE='\033[1;34m'
+readonly C_BOLD='\033[1m'
+readonly C_RESET='\033[0m'
 
 # ─── Print Functions ──────────────────────────────────────────────────────────
 msg_info()    { printf "${C_CYAN}%b${C_RESET}\n" "$*"; }
@@ -93,16 +93,26 @@ detect_pkg_manager() {
 }
 
 # ─── IP Detection ────────────────────────────────────────────────────────────
+_CACHED_IPV4=""
+
 detect_ipv4() {
+    if [[ -n "$_CACHED_IPV4" ]]; then
+        echo "$_CACHED_IPV4"
+        return
+    fi
     local ip
     ip=$(curl -s4 --max-time 5 https://ifconfig.me 2>/dev/null) \
         || ip=$(curl -s4 --max-time 5 https://api.ipify.org 2>/dev/null) \
         || ip=$(curl -s4 --max-time 5 https://ipv4.icanhazip.com 2>/dev/null)
     if [[ -z "$ip" ]]; then
+        ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    fi
+    if [[ -z "$ip" ]]; then
         msg_warn "无法自动检测公网 IP"
         printf "${C_WHITE}请输入服务器公网 IP: ${C_RESET}"
         read -r ip
     fi
+    _CACHED_IPV4="$ip"
     echo "${ip}"
 }
 
@@ -148,6 +158,11 @@ gen_hex() {
 gen_base64() {
     local len="${1:-32}"
     openssl rand -base64 "$len" | tr -d '\n'
+}
+
+gen_base64url() {
+    local len="${1:-32}"
+    openssl rand -base64 "$len" | tr -d '\n' | tr '/+' '_-' | tr -d '='
 }
 
 gen_uuid() {
@@ -245,8 +260,16 @@ state_set() {
     local value="$2"
     (
         flock -x 200
-        local tmp="${STATE_FILE}.tmp"
-        jq --argjson v "$value" "${key} = \$v" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+        local tmp
+        tmp=$(mktemp "${STATE_FILE}.XXXXXX") || exit 1
+        trap 'rm -f "$tmp"' EXIT
+        if jq --argjson v "$value" "${key} = \$v" "$STATE_FILE" > "$tmp"; then
+            mv "$tmp" "$STATE_FILE"
+            trap - EXIT
+        else
+            rm -f "$tmp"
+            exit 1
+        fi
     ) 200>"${STATE_FILE}.lock"
 }
 
@@ -256,8 +279,16 @@ state_set_string() {
     local value="$2"
     (
         flock -x 200
-        local tmp="${STATE_FILE}.tmp"
-        jq --arg v "$value" "${key} = \$v" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+        local tmp
+        tmp=$(mktemp "${STATE_FILE}.XXXXXX") || exit 1
+        trap 'rm -f "$tmp"' EXIT
+        if jq --arg v "$value" "${key} = \$v" "$STATE_FILE" > "$tmp"; then
+            mv "$tmp" "$STATE_FILE"
+            trap - EXIT
+        else
+            rm -f "$tmp"
+            exit 1
+        fi
     ) 200>"${STATE_FILE}.lock"
 }
 
@@ -266,8 +297,16 @@ state_del() {
     key=$(_jq_safe_path "$1")
     (
         flock -x 200
-        local tmp="${STATE_FILE}.tmp"
-        jq "del(${key})" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+        local tmp
+        tmp=$(mktemp "${STATE_FILE}.XXXXXX") || exit 1
+        trap 'rm -f "$tmp"' EXIT
+        if jq "del(${key})" "$STATE_FILE" > "$tmp"; then
+            mv "$tmp" "$STATE_FILE"
+            trap - EXIT
+        else
+            rm -f "$tmp"
+            exit 1
+        fi
     ) 200>"${STATE_FILE}.lock"
 }
 
@@ -374,7 +413,7 @@ spinner_stop() {
 download_file() {
     local url="$1"
     local output="$2"
-    curl -fsSL --connect-timeout 10 --max-time 300 -o "$output" "$url"
+    curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 300 -o "$output" "$url"
 }
 
 github_latest_tag() {
@@ -456,24 +495,28 @@ state_set_protocol() {
     local proto="$1"
     local json="$2"
     state_set ".protocols.${proto}" "$json"
+    chmod 640 "${proto_dir:-/etc/mizu/${proto}}/config."* 2>/dev/null || true
 }
 
 # ─── Service Start with Verification ─────────────────────────────────────────
 service_start_verified() {
     local proto="$1"
-    # Use restart: handles both fresh start and crash-looping services
     systemctl restart "mizu-${proto}"
-    sleep 2
-    if ! systemctl is-active --quiet "mizu-${proto}" 2>/dev/null; then
-        msg_error "${PROTO_NAMES[$proto]:-$proto} 启动失败"
-        msg_dim "最近日志:"
-        journalctl -u "mizu-${proto}" --no-pager -n 15 2>/dev/null | while IFS= read -r line; do
-            printf "  %s\n" "$line"
-        done
-        return 1
-    fi
-    msg_success "${PROTO_NAMES[$proto]:-$proto} 已启动"
-    return 0
+    local retries=3
+    while (( retries > 0 )); do
+        sleep 1
+        if systemctl is-active --quiet "mizu-${proto}" 2>/dev/null; then
+            msg_success "${PROTO_NAMES[$proto]:-$proto} 已启动"
+            return 0
+        fi
+        ((retries--))
+    done
+    msg_error "${PROTO_NAMES[$proto]:-$proto} 启动失败"
+    msg_dim "最近日志:"
+    journalctl -u "mizu-${proto}" --no-pager -n 15 2>/dev/null | while IFS= read -r line; do
+        printf "  %s\n" "$line"
+    done
+    return 1
 }
 
 # ─── Port Conflict Check Helper ──────────────────────────────────────────────

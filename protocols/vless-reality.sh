@@ -84,8 +84,10 @@ vless_reality_install() {
         return 1
     }
     local private_key public_key
-    private_key=$(echo "$key_output" | grep -i "PrivateKey" | awk '{print $2}')
-    public_key=$(echo "$key_output" | grep -i "PublicKey" | awk '{print $3}')
+    private_key=$(echo "$key_output" | awk -F':[[:space:]]*' '/[Pp]rivate[[:space:]]?[Kk]ey/{print $2; exit}')
+    public_key=$(echo "$key_output" | awk -F':[[:space:]]*' '/[Pp]ublic[[:space:]]?[Kk]ey/{print $2; exit}')
+    private_key=${private_key// /}
+    public_key=${public_key// /}
     if [[ -z "$private_key" || -z "$public_key" ]]; then
         msg_error "Reality 密钥解析失败"
         msg_dim "xray x25519 输出: ${key_output}"
@@ -194,8 +196,10 @@ vless_reality_regen() {
         return 1
     }
     local private_key public_key
-    private_key=$(echo "$key_output" | grep -i "PrivateKey" | awk '{print $2}')
-    public_key=$(echo "$key_output" | grep -i "PublicKey" | awk '{print $3}')
+    private_key=$(echo "$key_output" | awk -F':[[:space:]]*' '/[Pp]rivate[[:space:]]?[Kk]ey/{print $2; exit}')
+    public_key=$(echo "$key_output" | awk -F':[[:space:]]*' '/[Pp]ublic[[:space:]]?[Kk]ey/{print $2; exit}')
+    private_key=${private_key// /}
+    public_key=${public_key// /}
     if [[ -z "$private_key" || -z "$public_key" ]]; then
         msg_error "Reality 密钥解析失败"
         msg_dim "xray x25519 输出: ${key_output}"

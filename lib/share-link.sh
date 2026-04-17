@@ -56,7 +56,7 @@ gen_trojan_link() {
     password=$(state_get ".protocols.trojan.credential.password")
     domain=$(state_get ".protocols.trojan.domain")
     port=$(state_get ".protocols.trojan.port")
-    echo "trojan://${password}@${ipv4}:${port}?security=tls&type=tcp&sni=${domain}#Mizu-Trojan"
+    echo "trojan://$(url_encode "$password")@${ipv4}:${port}?security=tls&type=tcp&sni=${domain}#Mizu-Trojan"
 }
 
 # ─── VLESS + Reality ─────────────────────────────────────────────────────────
@@ -99,11 +99,11 @@ gen_vmess_link() {
         --arg v "2" \
         --arg ps "Mizu-VMess" \
         --arg add "$ipv4" \
-        --arg port "$port" \
+        --argjson port "$port" \
         --arg id "$uuid" \
         --arg host "$domain" \
         --arg path "$path" \
-        '{v:$v, ps:$ps, add:$add, port:$port, id:$id, aid:"0", scy:"auto", net:"ws", type:"none", host:$host, path:$path, tls:"tls", sni:$host}')
+        '{v:$v, ps:$ps, add:$add, port:$port, id:$id, aid:0, scy:"auto", net:"ws", type:"none", host:$host, path:$path, tls:"tls", sni:$host}')
     echo "vmess://$(echo -n "$vmess_json" | base64 -w 0)"
 }
 
@@ -139,7 +139,7 @@ gen_anytls_link() {
     domain=$(state_get ".protocols.anytls.domain")
     port=$(state_get ".protocols.anytls.port")
     # AnyTLS share link format
-    echo "anytls://${password}@${ipv4}:${port}?sni=${domain}&type=tcp#Mizu-AnyTLS"
+    echo "anytls://$(url_encode "$password")@${ipv4}:${port}?sni=${domain}&type=tcp#Mizu-AnyTLS"
 }
 
 # ─── Hysteria 2 ──────────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ gen_hysteria2_link() {
     if [[ "$port_hopping" == "y" && -n "$hopping_range" && "$hopping_range" != "null" ]]; then
         params="${params}&mport=${hopping_range}"
     fi
-    echo "hysteria2://${password}@${ipv4}:${port}?${params}#Mizu-HY2"
+    echo "hysteria2://$(url_encode "$password")@${ipv4}:${port}?${params}#Mizu-HY2"
 }
 
 # ─── Shadowsocks 2022 ────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@ gen_ss_link() {
     method=$(state_get ".protocols.shadowsocks.credential.method")
     key=$(state_get ".protocols.shadowsocks.credential.key")
     port=$(state_get ".protocols.shadowsocks.port")
-    echo "ss://$(echo -n "${method}:${key}@${ipv4}:${port}" | base64 -w 0)#Mizu-SS2022"
+    echo "ss://$(echo -n "${method}:$(url_encode "$key")@${ipv4}:${port}" | base64 -w 0)#Mizu-SS2022"
 }
 
 # ─── Save share link to state ────────────────────────────────────────────────

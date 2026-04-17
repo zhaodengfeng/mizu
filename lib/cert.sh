@@ -9,6 +9,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 CERT_DIR="/etc/mizu/tls"
 CERT_MAP="/etc/mizu/tls/cert-map.json"
+RELOAD_CERT_SCRIPT="/etc/mizu/reload-cert.sh"
 
 # ─── DNS provider config ─────────────────────────────────────────────────────
 DNS_PROVIDERS=(
@@ -62,6 +63,40 @@ cert_init() {
     if [[ ! -f "$CERT_MAP" ]]; then
         echo '{}' > "$CERT_MAP"
     fi
+    _install_reload_cert_script
+}
+
+# ─── Install certificate reload helper script ─────────────────────────────────
+_install_reload_cert_script() {
+    if [[ -f "$RELOAD_CERT_SCRIPT" ]]; then
+        return 0
+    fi
+    mkdir -p /etc/mizu
+    cat > "$RELOAD_CERT_SCRIPT" <<'SCRIPTEOF'
+#!/usr/bin/env bash
+# Reload services that use a given domain's certificate
+domain="$1"
+if [[ -z "$domain" || "$domain" =~ [^a-zA-Z0-9._-] ]]; then
+    echo "Invalid domain" >&2; exit 1
+fi
+STATE_FILE="/etc/mizu/state.json"
+if [[ ! -f "$STATE_FILE" ]]; then exit 0; fi
+for svc in $(jq -r '.protocols | to_entries[] | select(.value.domain == "'"$domain"'") | .key' "$STATE_FILE" 2>/dev/null); do
+    case "$svc" in
+        trojan|vless-vision|vmess)
+            systemctl reload "mizu-${svc}" 2>/dev/null || systemctl restart "mizu-${svc}" 2>/dev/null
+            ;;
+        *)
+            systemctl restart "mizu-${svc}" 2>/dev/null
+            ;;
+    esac
+done
+# Reload Caddy if trojan uses this domain
+for svc in $(jq -r '.protocols | to_entries[] | select(.value.domain == "'"$domain"'" and .key == "trojan") | .key' "$STATE_FILE" 2>/dev/null); do
+    systemctl restart mizu-caddy 2>/dev/null
+done
+SCRIPTEOF
+    chmod 700 "$RELOAD_CERT_SCRIPT"
 }
 
 # ─── Check existing certificate ──────────────────────────────────────────────
@@ -94,7 +129,7 @@ cert_days_remaining() {
 
 # ─── Register acme account ───────────────────────────────────────────────────
 acme_register() {
-    if [[ ! -f ~/.acme.sh/acme.sh ]]; then
+    if [[ ! -f "${ACME_HOME}/acme.sh" ]]; then
         msg_error "acme.sh 未安装"
         return 1
     fi
@@ -177,17 +212,16 @@ cert_issue_dns() {
         export _MIZU_ACME_EMAIL
     fi
 
-    # Clear old account data and register with correct email
-    rm -rf ~/.acme.sh/ca/ 2>/dev/null
-    ~/.acme.sh/acme.sh --register-account -m "$_MIZU_ACME_EMAIL" --server letsencrypt 2>/dev/null
+    # Register account in isolated ACME_HOME
+    "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --register-account -m "$_MIZU_ACME_EMAIL" --server letsencrypt 2>/dev/null
 
     # Issue with DNS
-    if ~/.acme.sh/acme.sh --issue -d "$domain" --keylength ec-256 --dns "$provider" --server letsencrypt 2>/dev/null; then
+    if "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --issue -d "$domain" --keylength ec-256 --dns "$provider" --server letsencrypt 2>/dev/null; then
         msg_success "证书申请成功 (DNS-01)"
     else
         # Try ZeroSSL
         msg_warn "Let's Encrypt 失败，尝试 ZeroSSL..."
-        if ~/.acme.sh/acme.sh --issue -d "$domain" --keylength ec-256 --dns "$provider" --server zerossl 2>/dev/null; then
+        if "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --issue -d "$domain" --keylength ec-256 --dns "$provider" --server zerossl 2>/dev/null; then
             msg_success "证书申请成功 (ZeroSSL + DNS-01)"
         else
             msg_error "DNS-01 证书申请失败"
@@ -197,15 +231,16 @@ cert_issue_dns() {
 
     # Install certificate
     mkdir -p "${CERT_DIR}/${domain}"
-    ~/.acme.sh/acme.sh --install-cert -d "$domain" --ecc \
+    "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --install-cert -d "$domain" --ecc \
         --fullchain-file "${CERT_DIR}/${domain}/fullchain.cer" \
         --key-file "${CERT_DIR}/${domain}/${domain}.key" \
-        --reloadcmd "bash -c 'for svc in \$(jq -r \".protocols | to_entries[] | select(.value.domain == \\\"${domain}\\\") | .key\" /etc/mizu/state.json 2>/dev/null); do systemctl reload mizu-\${svc} 2>/dev/null; done'" \
+        --reloadcmd "${RELOAD_CERT_SCRIPT} ${domain}" \
         2>/dev/null
 
     save_dns_config "$domain" "$provider"
     msg_success "证书已安装到 ${CERT_DIR}/${domain}/"
     cert_ref_add "$domain"
+    _fix_cert_permissions "$domain"
     return 0
 }
 
@@ -217,8 +252,7 @@ cert_issue() {
 
     cert_init
 
-    # Ensure service users (nobody) can read certificates
-    [[ -d "${CERT_DIR}" ]] && chmod -R o+rX "${CERT_DIR}" 2>/dev/null
+    _fix_cert_permissions_all
 
     # Check if certificate already exists
     if cert_exists "$domain"; then
@@ -252,11 +286,11 @@ cert_issue() {
         export _MIZU_ACME_EMAIL
     fi
 
-    # Clear old account data and re-register with correct email
-    rm -rf ~/.acme.sh/ca/ ~/.acme.sh/account.conf 2>/dev/null
-    ~/.acme.sh/acme.sh --register-account -m "$_MIZU_ACME_EMAIL" --server letsencrypt 2>/dev/null
+    # Register account in isolated ACME_HOME
+    "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --register-account -m "$_MIZU_ACME_EMAIL" --server letsencrypt 2>/dev/null
 
     local issue_args=(
+        --home "${ACME_HOME}"
         --issue
         -d "$domain"
         --keylength ec-256
@@ -267,22 +301,22 @@ cert_issue() {
         issue_args+=(--webroot "$webroot")
     else
         # Try standalone mode (need port 80)
-        local port80_service=""
+        _MIZU_PORT80_SVC=""
         if port_in_use 80; then
-            port80_service=$(ss -tlnp | grep ":80 " | grep -oP 'users:\(\("\K[^"]+' | head -1)
-            if [[ -n "$port80_service" ]]; then
-                systemctl stop "$port80_service" 2>/dev/null
+            _MIZU_PORT80_SVC=$(ss -tlnp | grep ":80 " | grep -oP 'users:\(\("\K[^"]+' | head -1)
+            if [[ -n "$_MIZU_PORT80_SVC" ]]; then
+                systemctl stop "$_MIZU_PORT80_SVC" 2>/dev/null
             fi
         fi
-        # Ensure port 80 service is restored on any exit path
-        if [[ -n "$port80_service" ]]; then
-            trap '[[ -n "${port80_service:-}" ]] && systemctl start "$port80_service" 2>/dev/null' RETURN
+        # Restore port 80 service on any exit path
+        if [[ -n "$_MIZU_PORT80_SVC" ]]; then
+            trap '_restore_port80' RETURN INT TERM
         fi
         issue_args+=(--standalone)
     fi
 
     local cert_output
-    cert_output=$(~/.acme.sh/acme.sh "${issue_args[@]}" 2>&1)
+    cert_output=$("${ACME_HOME}/acme.sh" "${issue_args[@]}" 2>&1)
     if [[ $? -eq 0 ]]; then
         msg_success "证书申请成功 (HTTP-01)"
     else
@@ -314,8 +348,8 @@ cert_issue() {
             2)
                 msg_warn "尝试 ZeroSSL..."
                 local zerossl_output
-                ~/.acme.sh/acme.sh --register-account -m "${_MIZU_ACME_EMAIL:-}" --server zerossl 2>/dev/null
-                zerossl_output=$(~/.acme.sh/acme.sh --issue -d "$domain" --keylength ec-256 --server zerossl --standalone 2>&1)
+                "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --register-account -m "${_MIZU_ACME_EMAIL:-}" --server zerossl 2>/dev/null
+                zerossl_output=$("${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --issue -d "$domain" --keylength ec-256 --server zerossl --standalone 2>&1)
                 if [[ $? -eq 0 ]]; then
                     msg_success "证书申请成功 (ZeroSSL)"
                 else
@@ -335,16 +369,46 @@ cert_issue() {
 
     # Install certificate
     mkdir -p "${CERT_DIR}/${domain}"
-    ~/.acme.sh/acme.sh --install-cert -d "$domain" --ecc \
+    "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --install-cert -d "$domain" --ecc \
         --fullchain-file "${CERT_DIR}/${domain}/fullchain.cer" \
         --key-file "${CERT_DIR}/${domain}/${domain}.key" \
-        --reloadcmd "bash -c 'for svc in \$(jq -r \".protocols | to_entries[] | select(.value.domain == \\\"${domain}\\\") | .key\" /etc/mizu/state.json 2>/dev/null); do systemctl reload mizu-\${svc} 2>/dev/null; done'" \
+        --reloadcmd "${RELOAD_CERT_SCRIPT} ${domain}" \
         2>/dev/null
 
     msg_success "证书已安装到 ${CERT_DIR}/${domain}/"
     cert_ref_add "$domain"
+    _fix_cert_permissions "$domain"
 
     return 0
+}
+
+# ─── Certificate permission helpers ───────────────────────────────────────────
+_fix_cert_permissions() {
+    local domain="$1"
+    local dir="${CERT_DIR}/${domain}"
+    [[ ! -d "$dir" ]] && return
+    find "$dir" -type d -exec chmod 755 {} \; 2>/dev/null
+    find "$dir" -name 'fullchain.cer' -exec chmod 644 {} \; 2>/dev/null
+    find "$dir" -name '*.key' -exec chmod 600 {} \; 2>/dev/null
+    find "$dir" -name '*.cer' ! -name 'fullchain.cer' -exec chmod 644 {} \; 2>/dev/null
+}
+
+_fix_cert_permissions_all() {
+    [[ ! -d "${CERT_DIR}" ]] && return
+    find "${CERT_DIR}" -type d -exec chmod 755 {} \; 2>/dev/null
+    find "${CERT_DIR}" -name 'fullchain.cer' -exec chmod 644 {} \; 2>/dev/null
+    find "${CERT_DIR}" -name '*.cer' ! -name 'fullchain.cer' -exec chmod 644 {} \; 2>/dev/null
+    find "${CERT_DIR}" -name '*.key' -exec chmod 600 {} \; 2>/dev/null
+}
+
+# ─── Restore port 80 service ──────────────────────────────────────────────────
+_MIZU_PORT80_SVC=""
+_restore_port80() {
+    if [[ -n "${_MIZU_PORT80_SVC:-}" ]]; then
+        systemctl start "$_MIZU_PORT80_SVC" 2>/dev/null
+        _MIZU_PORT80_SVC=""
+    fi
+    trap - RETURN INT TERM
 }
 
 # ─── Certificate reference counting ──────────────────────────────────────────

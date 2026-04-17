@@ -19,6 +19,10 @@ generate_site() {
     site_name=$(echo "$domain" | awk -F. '{if(NF>2) print substr($0, index($0,$2)); else print $0}')
     site_name=$(echo "$site_name" | sed 's/\b\(.\)/\u\1/g')
 
+    # Escape site_name for safe sed substitution
+    local safe_name
+    safe_name=$(printf '%s' "$site_name" | sed 's/[&\\]/\\&/g; s/\x01/\\x01/g')
+
     # Copy CSS
     if [[ -f "${TEMPLATE_DIR}/site-styles.css" ]]; then
         cp "${TEMPLATE_DIR}/site-styles.css" "${SITE_DIR}/css/styles.css"
@@ -28,21 +32,21 @@ generate_site() {
 
     # Generate index.html
     if [[ -f "${TEMPLATE_DIR}/site-index.html" ]]; then
-        sed "s/{{SITE_NAME}}/${site_name}/g" "${TEMPLATE_DIR}/site-index.html" > "${SITE_DIR}/index.html"
+        sed "s\x01{{SITE_NAME}}\x01${safe_name}\x01g" "${TEMPLATE_DIR}/site-index.html" > "${SITE_DIR}/index.html"
     else
         generate_index "$site_name" "$domain" > "${SITE_DIR}/index.html"
     fi
 
     # Generate journal page
     if [[ -f "${TEMPLATE_DIR}/site-journal.html" ]]; then
-        sed "s/{{SITE_NAME}}/${site_name}/g" "${TEMPLATE_DIR}/site-journal.html" > "${SITE_DIR}/journal/index.html"
+        sed "s\x01{{SITE_NAME}}\x01${safe_name}\x01g" "${TEMPLATE_DIR}/site-journal.html" > "${SITE_DIR}/journal/index.html"
     else
         generate_journal "$site_name" > "${SITE_DIR}/journal/index.html"
     fi
 
     # Generate about page
     if [[ -f "${TEMPLATE_DIR}/site-about.html" ]]; then
-        sed "s/{{SITE_NAME}}/${site_name}/g" "${TEMPLATE_DIR}/site-about.html" > "${SITE_DIR}/about/index.html"
+        sed "s\x01{{SITE_NAME}}\x01${safe_name}\x01g" "${TEMPLATE_DIR}/site-about.html" > "${SITE_DIR}/about/index.html"
     else
         generate_about "$site_name" "$domain" > "${SITE_DIR}/about/index.html"
     fi

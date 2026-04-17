@@ -121,9 +121,10 @@ load_runtimes() {
 mizu_init() {
     check_root
 
-    # Create log directory (world-writable for nobody user)
+    # Create log directory
     mkdir -p /var/log/mizu
-    chmod 777 /var/log/mizu
+    chmod 750 /var/log/mizu
+    chown root:adm /var/log/mizu 2>/dev/null || chown root:root /var/log/mizu
 
     # Setup logrotate (once)
     if [[ ! -f /etc/logrotate.d/mizu ]]; then
@@ -362,8 +363,9 @@ do_uninstall_all() {
     rm -f /usr/local/bin/ssserver /usr/local/bin/ssservice
     rm -f /usr/local/bin/snell-server /usr/local/bin/caddy
 
-    # Remove acme.sh cron (keep program)
-    ~/.acme.sh/acme.sh --uninstall-cron 2>/dev/null || true
+    # Remove acme.sh cron and isolated home
+    "${ACME_HOME}/acme.sh" --uninstall-cron --home "${ACME_HOME}" 2>/dev/null || true
+    rm -rf "${ACME_HOME}"
 
     # Remove script symlink
     rm -f /usr/local/bin/mizu
@@ -382,8 +384,13 @@ tui_install_protocol() {
 
         case "$choice" in
             0) return ;;
-            [1-9])
+            [1-9]*)
                 local idx=$((choice - 1))
+                if [[ $idx -ge ${#PROTO_ORDER[@]} ]]; then
+                    msg_error "无效选择"
+                    press_enter
+                    continue
+                fi
                 local proto="${PROTO_ORDER[$idx]}"
                 if [[ -z "$proto" ]]; then
                     msg_error "无效的协议索引: $idx"

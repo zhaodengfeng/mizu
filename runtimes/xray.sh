@@ -50,6 +50,22 @@ rt_xray_install() {
         return 1
     fi
 
+    # SHA256 verification
+    local dgst_url="${url}.dgst"
+    if download_file "$dgst_url" "${tmpdir}/${filename}.dgst" 2>/dev/null; then
+        local expected actual
+        expected=$(awk '/SHA2-256/{print $2}' "${tmpdir}/${filename}.dgst" | head -1)
+        actual=$(sha256sum "${tmpdir}/${filename}" | awk '{print $1}')
+        if [[ -n "$expected" && "$expected" != "$actual" ]]; then
+            msg_error "Xray SHA256 校验失败"
+            rm -rf "$tmpdir"
+            return 1
+        fi
+        msg_success "SHA256 校验通过"
+    else
+        msg_warn "未找到校验文件，跳过 SHA256 验证"
+    fi
+
     # Backup old binary
     [[ -f "$XRAY_BIN" ]] && cp "$XRAY_BIN" "${XRAY_BIN}.bak"
 

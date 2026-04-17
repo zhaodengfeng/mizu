@@ -49,6 +49,22 @@ rt_singbox_install() {
         fi
     fi
 
+    # SHA256 verification
+    local shasum_url="https://github.com/${SINGBOX_REPO}/releases/download/v${version}/sing-box-${version}.checksums.txt"
+    if download_file "$shasum_url" "${tmpdir}/checksums.txt" 2>/dev/null; then
+        local expected actual
+        expected=$(grep "$(basename "${tmpdir}/${filename}")" "${tmpdir}/checksums.txt" | awk '{print $1}')
+        actual=$(sha256sum "${tmpdir}/${filename}" | awk '{print $1}')
+        if [[ -n "$expected" && "$expected" != "$actual" ]]; then
+            msg_error "sing-box SHA256 校验失败"
+            rm -rf "$tmpdir"
+            return 1
+        fi
+        msg_success "SHA256 校验通过"
+    else
+        msg_warn "未找到校验文件，跳过 SHA256 验证"
+    fi
+
     # Backup
     [[ -f "$SINGBOX_BIN" ]] && cp "$SINGBOX_BIN" "${SINGBOX_BIN}.bak"
 

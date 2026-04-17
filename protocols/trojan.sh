@@ -157,6 +157,13 @@ trojan_uninstall() {
 
     msg_warn "正在卸载 Trojan..."
 
+    # Check if other protocols still need Caddy BEFORE deleting state
+    local caddy_still_needed
+    caddy_still_needed=$(jq -r '.protocols | to_entries[] |
+        select(.key != "trojan") |
+        select(.value.runtime == "caddy" or .key == "trojan") | .key' \
+        "$STATE_FILE" 2>/dev/null | grep -v "trojan" || true)
+
     service_remove "$proto"
 
     # Stop and remove Caddy service
@@ -175,8 +182,10 @@ trojan_uninstall() {
 
     state_del ".protocols.${proto}"
 
-    # Remove Caddy binary if no other protocol needs it
-    rt_caddy_remove 2>/dev/null || true
+    # Remove Caddy binary only if no other protocol needs it
+    if [[ -z "$caddy_still_needed" ]]; then
+        rt_caddy_remove 2>/dev/null || true
+    fi
 
     msg_success "Trojan 已卸载"
 }
