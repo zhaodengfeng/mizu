@@ -70,11 +70,15 @@
 
 ## 快速开始
 
-```bash
-# 一键安装
-bash <(curl -fsSL https://raw.githubusercontent.com/zhaodengfeng/mizu/main/mizu.sh)
+### 一键安装
 
-# 或克隆后运行
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/zhaodengfeng/mizu/main/mizu.sh)
+```
+
+### 下载后运行
+
+```bash
 git clone https://github.com/zhaodengfeng/mizu.git /opt/mizu
 bash /opt/mizu/mizu.sh
 ```
