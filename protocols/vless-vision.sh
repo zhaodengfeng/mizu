@@ -81,15 +81,16 @@ vless_vision_install() {
     # Save state
     local ipv4
     ipv4=$(detect_ipv4)
-    local share_link="vless://${uuid}@${ipv4}:${port}?encryption=none&security=tls&type=tcp&sni=${domain}&flow=xtls-rprx-vision&fp=chrome#Mizu-VLESS-Vision"
 
     state_set_protocol "$proto" "$(jq -n \
         --arg port "$port" --arg domain "$domain" --arg uuid "$uuid" \
-        --arg transport "TCP+TLS (Vision)" --arg link "$share_link" '{
+        --arg transport "TCP+TLS (Vision)" '{
             "port": $port, "domain": $domain, "transport": $transport,
-            "status": "running", "share_link": $link,
+            "status": "running",
             "credential": {"uuid": $uuid}
-        }')"
+        }')" || return 1
+    local share_link
+    share_link=$(refresh_share_link "$proto" "$ipv4") || return 1
 
     # Show result
     echo ""
@@ -117,11 +118,11 @@ vless_vision_regen() {
         && mv "${proto_dir}/config.json.tmp" "${proto_dir}/config.json"
 
     state_set_string ".protocols.${proto}.credential.uuid" "$uuid"
-    service_restart "$proto"
+    service_restart_verified "$proto" || return 1
 
     local ipv4
     ipv4=$(detect_ipv4)
-    save_share_link "$proto" "$ipv4"
+    save_share_link "$proto" "$ipv4" || return 1
     msg_success "凭证已重新生成"
 }
 

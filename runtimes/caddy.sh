@@ -44,11 +44,25 @@ rt_caddy_install() {
     fi
 
     # Backup
-    [[ -f "$CADDY_BIN" ]] && cp "$CADDY_BIN" "${CADDY_BIN}.bak"
+    local backup_bin=""
+    if [[ -f "$CADDY_BIN" ]]; then
+        backup_bin="${CADDY_BIN}.bak"
+        cp "$CADDY_BIN" "$backup_bin"
+    fi
 
-    tar -xzf "${tmpdir}/${filename}" -C "${tmpdir}" caddy >/dev/null
+    if ! tar -xzf "${tmpdir}/${filename}" -C "${tmpdir}" caddy >/dev/null; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$CADDY_BIN"
+        rm -rf "$tmpdir"
+        msg_error "Caddy 解压失败，已恢复旧版本"
+        return 1
+    fi
     chmod +x "${tmpdir}/caddy"
-    cp "${tmpdir}/caddy" "$CADDY_BIN"
+    if ! cp "${tmpdir}/caddy" "$CADDY_BIN"; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$CADDY_BIN"
+        rm -rf "$tmpdir"
+        msg_error "Caddy 安装失败，已恢复旧版本"
+        return 1
+    fi
 
     rm -rf "$tmpdir"
     state_set_string ".runtimes.caddy" "$version"
@@ -75,12 +89,14 @@ rt_caddy_update() {
     msg_info "更新 Caddy ${current} → ${latest}..."
     rt_caddy_install || return 1
     # Restart Caddy service if trojan is installed (Caddy is trojan's fallback)
-    state_protocol_exists "trojan" && systemctl restart mizu-caddy 2>/dev/null
-    msg_success "相关服务已重启"
+    if state_protocol_exists "trojan"; then
+        systemd_unit_restart_verified "mizu-caddy" "Caddy" || return 1
+        msg_success "相关服务已重启"
+    fi
 }
 
 rt_caddy_remove() {
-    local caddy_protos=("trojan" "vless-vision" "vmess")
+    local caddy_protos=("trojan")
     for p in "${caddy_protos[@]}"; do
         if state_protocol_exists "$p"; then
             msg_warn "Caddy 仍被 ${p} 使用，跳过删除"

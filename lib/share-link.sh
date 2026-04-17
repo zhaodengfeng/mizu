@@ -176,16 +176,21 @@ gen_ss_link() {
 }
 
 # ─── Save share link to state ────────────────────────────────────────────────
-save_share_link() {
+refresh_share_link() {
     local proto="$1"
     local ipv4="$2"
     local link
     link=$(generate_share_link "$proto" "$ipv4")
     if [[ -n "$link" ]]; then
-        state_set_string ".protocols.${proto}.share_link" "$link"
+        state_set_string ".protocols.${proto}.share_link" "$link" || return 1
     fi
     # Also save to file
     local link_file="/etc/mizu/share-links/${proto}.txt"
     mkdir -p /etc/mizu/share-links
     echo "$link" > "$link_file"
+    echo "$link"
+}
+
+save_share_link() {
+    refresh_share_link "$1" "$2" >/dev/null
 }

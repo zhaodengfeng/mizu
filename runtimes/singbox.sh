@@ -66,19 +66,34 @@ rt_singbox_install() {
     fi
 
     # Backup
-    [[ -f "$SINGBOX_BIN" ]] && cp "$SINGBOX_BIN" "${SINGBOX_BIN}.bak"
+    local backup_bin=""
+    if [[ -f "$SINGBOX_BIN" ]]; then
+        backup_bin="${SINGBOX_BIN}.bak"
+        cp "$SINGBOX_BIN" "$backup_bin"
+    fi
 
     # Extract and install
-    tar -xzf "${tmpdir}/${filename}" -C "${tmpdir}" >/dev/null
+    if ! tar -xzf "${tmpdir}/${filename}" -C "${tmpdir}" >/dev/null; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$SINGBOX_BIN"
+        rm -rf "$tmpdir"
+        msg_error "sing-box 解压失败，已恢复旧版本"
+        return 1
+    fi
     local singbox_file
     singbox_file=$(find "${tmpdir}" -name "sing-box" -type f | head -1)
     if [[ -z "$singbox_file" ]]; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$SINGBOX_BIN"
         msg_error "sing-box 二进制未找到"
         rm -rf "$tmpdir"
         return 1
     fi
     chmod +x "$singbox_file"
-    cp "$singbox_file" "$SINGBOX_BIN"
+    if ! cp "$singbox_file" "$SINGBOX_BIN"; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$SINGBOX_BIN"
+        rm -rf "$tmpdir"
+        msg_error "sing-box 安装失败，已恢复旧版本"
+        return 1
+    fi
 
     rm -rf "$tmpdir"
     state_set_string ".runtimes.sing-box" "$version"
@@ -107,7 +122,7 @@ rt_singbox_update() {
     # Restart protocols that depend on sing-box
     local singbox_protos=("shadowtls" "anytls")
     for p in "${singbox_protos[@]}"; do
-        state_protocol_exists "$p" && service_restart "$p" 2>/dev/null
+        state_protocol_exists "$p" && service_restart_verified "$p" 2>/dev/null
     done
     msg_success "相关服务已重启"
 }

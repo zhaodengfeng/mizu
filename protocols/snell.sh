@@ -49,7 +49,7 @@ EOF
         "port": $port, "transport": "TCP+UDP",
         "status": "running",
         "credential": {"psk": $psk, "version": $version}
-    }')"
+    }')" || return 1
 
     # Show result (Snell has no share link)
     echo ""
@@ -76,7 +76,7 @@ snell_regen() {
     sed -i "s|psk = .*|psk = ${psk}|" "${proto_dir}/snell-server.conf"
 
     state_set_string ".protocols.${proto}.credential.psk" "$psk"
-    service_restart "$proto"
+    service_restart_verified "$proto" || return 1
     msg_success "凭证已重新生成"
 }
 
@@ -133,7 +133,7 @@ snell_settings() {
                     echo "dns = ${new_dns}" >> "${proto_dir}/snell-server.conf"
                 fi
                 state_set_string ".protocols.${proto}.credential.dns" "$new_dns"
-                service_restart "$proto"
+                service_restart_verified "$proto" || { press_enter; continue; }
                 msg_success "DNS 已设置为 ${new_dns}"
                 press_enter
                 ;;
@@ -145,7 +145,7 @@ snell_settings() {
                 fi
                 sed -i "s/ipv6 = .*/ipv6 = ${new_ipv6}/" "${proto_dir}/snell-server.conf"
                 state_set_string ".protocols.${proto}.credential.ipv6" "$new_ipv6"
-                service_restart "$proto"
+                service_restart_verified "$proto" || { press_enter; continue; }
                 msg_success "IPv6 已设置为 ${new_ipv6}"
                 press_enter
                 ;;

@@ -6,17 +6,6 @@ _MIZU_SERVICE_SH_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-# ─── Detect unprivileged group (nogroup on Debian, nobody on RHEL) ────────────
-_service_group() {
-    if getent group nogroup &>/dev/null; then
-        echo "nogroup"
-    elif getent group nobody &>/dev/null; then
-        echo "nobody"
-    else
-        echo "nogroup"
-    fi
-}
-
 # ─── Create systemd service ──────────────────────────────────────────────────
 # Usage: service_create PROTOCOL BINARY ARGS [EXTRA_DEPS]
 # EXTRA_DEPS format: "After=xxx.service Wants=xxx.service"
@@ -42,8 +31,11 @@ service_create() {
     local service_name="mizu-${proto}"
     local service_file="/etc/systemd/system/${service_name}.service"
     local name="${PROTO_NAMES[$proto]:-$proto}"
-    local svc_group
-    svc_group=$(_service_group)
+    ensure_mizu_service_group || return 1
+
+    local svc_group svc_user
+    svc_group=$(mizu_service_group)
+    svc_user=$(mizu_service_user)
 
     local after_line="After=network.target"
     local wants_line=""
@@ -60,8 +52,9 @@ ${after_line}${wants_line}
 
 [Service]
 Type=simple
-User=nobody
+User=${svc_user}
 Group=${svc_group}
+UMask=0027
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
@@ -133,8 +126,11 @@ service_remove() {
 service_create_caddy() {
     local service_file="/etc/systemd/system/mizu-caddy.service"
     local caddyfile="/etc/mizu/caddy/Caddyfile"
-    local svc_group
-    svc_group=$(_service_group)
+    ensure_mizu_service_group || return 1
+
+    local svc_group svc_user
+    svc_group=$(mizu_service_group)
+    svc_user=$(mizu_service_user)
 
     cat > "$service_file" <<EOF
 [Unit]
@@ -143,8 +139,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=nobody
+User=${svc_user}
 Group=${svc_group}
+UMask=0027
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
@@ -178,6 +175,27 @@ service_start_all() {
     done <<< "$protocols"
 }
 
+service_start_all_verified() {
+    local protocols
+    protocols=$(state_list_protocols)
+    [[ -z "$protocols" ]] && return 0
+
+    local failures=()
+    while IFS= read -r proto; do
+        [[ -z "$proto" ]] && continue
+        service_enable "$proto" || true
+        if ! service_start_verified "$proto"; then
+            failures+=("${PROTO_NAMES[$proto]:-$proto}")
+        fi
+    done <<< "$protocols"
+
+    if [[ ${#failures[@]} -gt 0 ]]; then
+        msg_error "以下协议启动失败: ${failures[*]}"
+        return 1
+    fi
+    return 0
+}
+
 # ─── Stop all services ───────────────────────────────────────────────────────
 service_stop_all() {
     local protocols
@@ -189,6 +207,28 @@ service_stop_all() {
     fi
     # Stop Caddy if running
     systemctl stop mizu-caddy 2>/dev/null || true
+}
+
+service_stop_all_verified() {
+    local protocols
+    protocols=$(state_list_protocols)
+    [[ -z "$protocols" ]] && return 0
+
+    local failures=()
+    while IFS= read -r proto; do
+        [[ -z "$proto" ]] && continue
+        if ! service_stop_verified "$proto"; then
+            failures+=("${PROTO_NAMES[$proto]:-$proto}")
+        fi
+    done <<< "$protocols"
+
+    systemctl stop mizu-caddy 2>/dev/null || true
+
+    if [[ ${#failures[@]} -gt 0 ]]; then
+        msg_error "以下协议停止失败: ${failures[*]}"
+        return 1
+    fi
+    return 0
 }
 
 # ─── Remove all services ─────────────────────────────────────────────────────

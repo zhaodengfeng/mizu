@@ -71,13 +71,34 @@ rt_ss_install() {
     fi
 
     # Backup
-    [[ -f "$SS_BIN" ]] && cp "$SS_BIN" "${SS_BIN}.bak"
+    local backup_server=""
+    local backup_service=""
+    if [[ -f "$SS_BIN" ]]; then
+        backup_server="${SS_BIN}.bak"
+        cp "$SS_BIN" "$backup_server"
+    fi
+    if [[ -f "$SS_SERVICE_BIN" ]]; then
+        backup_service="${SS_SERVICE_BIN}.bak"
+        cp "$SS_SERVICE_BIN" "$backup_service"
+    fi
 
     # Extract
     if [[ "$filename" == *.tar.xz ]]; then
-        tar -xJf "${tmpdir}/${filename}" -C "${tmpdir}" >/dev/null
+        if ! tar -xJf "${tmpdir}/${filename}" -C "${tmpdir}" >/dev/null; then
+            [[ -n "$backup_server" && -f "$backup_server" ]] && cp "$backup_server" "$SS_BIN"
+            [[ -n "$backup_service" && -f "$backup_service" ]] && cp "$backup_service" "$SS_SERVICE_BIN"
+            rm -rf "$tmpdir"
+            msg_error "shadowsocks-rust 解压失败，已恢复旧版本"
+            return 1
+        fi
     else
-        tar -xzf "${tmpdir}/${filename}" -C "${tmpdir}" >/dev/null
+        if ! tar -xzf "${tmpdir}/${filename}" -C "${tmpdir}" >/dev/null; then
+            [[ -n "$backup_server" && -f "$backup_server" ]] && cp "$backup_server" "$SS_BIN"
+            [[ -n "$backup_service" && -f "$backup_service" ]] && cp "$backup_service" "$SS_SERVICE_BIN"
+            rm -rf "$tmpdir"
+            msg_error "shadowsocks-rust 解压失败，已恢复旧版本"
+            return 1
+        fi
     fi
 
     # Find and install binaries
@@ -86,16 +107,30 @@ rt_ss_install() {
     ssservice_bin=$(find "${tmpdir}" -name "ssservice" -type f | head -1)
 
     if [[ -z "$ssserver_bin" ]]; then
+        [[ -n "$backup_server" && -f "$backup_server" ]] && cp "$backup_server" "$SS_BIN"
+        [[ -n "$backup_service" && -f "$backup_service" ]] && cp "$backup_service" "$SS_SERVICE_BIN"
         msg_error "ssserver 二进制未在 release 包中找到"
         rm -rf "$tmpdir"
         return 1
     fi
 
     chmod +x "$ssserver_bin"
-    cp "$ssserver_bin" "$SS_BIN"
+    if ! cp "$ssserver_bin" "$SS_BIN"; then
+        [[ -n "$backup_server" && -f "$backup_server" ]] && cp "$backup_server" "$SS_BIN"
+        [[ -n "$backup_service" && -f "$backup_service" ]] && cp "$backup_service" "$SS_SERVICE_BIN"
+        rm -rf "$tmpdir"
+        msg_error "shadowsocks-rust 安装失败，已恢复旧版本"
+        return 1
+    fi
     if [[ -n "$ssservice_bin" ]]; then
         chmod +x "$ssservice_bin"
-        cp "$ssservice_bin" "$SS_SERVICE_BIN"
+        if ! cp "$ssservice_bin" "$SS_SERVICE_BIN"; then
+            [[ -n "$backup_server" && -f "$backup_server" ]] && cp "$backup_server" "$SS_BIN"
+            [[ -n "$backup_service" && -f "$backup_service" ]] && cp "$backup_service" "$SS_SERVICE_BIN"
+            rm -rf "$tmpdir"
+            msg_error "shadowsocks-rust 安装失败，已恢复旧版本"
+            return 1
+        fi
     fi
 
     rm -rf "$tmpdir"
@@ -123,7 +158,7 @@ rt_ss_update() {
     msg_info "更新 shadowsocks-rust ${current} → ${latest}..."
     rt_ss_install || return 1
     # Restart protocol that depends on shadowsocks-rust
-    state_protocol_exists "shadowsocks" && service_restart "shadowsocks" 2>/dev/null
+    state_protocol_exists "shadowsocks" && service_restart_verified "shadowsocks" 2>/dev/null
     msg_success "相关服务已重启"
 }
 

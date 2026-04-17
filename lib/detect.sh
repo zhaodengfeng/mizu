@@ -7,7 +7,7 @@ _MIZU_DETECT_SH_LOADED=1
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 # ─── Required Dependencies ───────────────────────────────────────────────────
-DEPS=("curl" "jq" "openssl" "unzip" "iptables" "tar" "gzip" "cron" "qrencode")
+DEPS=("curl" "jq" "openssl" "unzip" "iptables" "tar" "gzip" "xz" "cron" "qrencode")
 
 # acme.sh isolated home directory
 ACME_HOME="/etc/mizu/acme"
@@ -50,6 +50,7 @@ check_dep() {
         iptables) command -v iptables &>/dev/null ;;
         tar) command -v tar &>/dev/null ;;
         gzip) command -v gzip &>/dev/null ;;
+        xz) command -v xz &>/dev/null ;;
         acme.sh) [[ -f "${ACME_HOME}/acme.sh" ]] ;;
         cron) command -v crontab &>/dev/null ;;
         qrencode) command -v qrencode &>/dev/null ;;
@@ -106,8 +107,8 @@ install_chrony() {
         yum) yum install -y chrony ;;
         apk) apk add chrony ;;
     esac
-    systemctl enable chronyd &>/dev/null
-    systemctl start chronyd &>/dev/null
+    systemctl enable chronyd &>/dev/null || systemctl enable chrony &>/dev/null || true
+    systemctl start chronyd &>/dev/null || systemctl start chrony &>/dev/null || true
 }
 
 # ─── Full Environment Detection ──────────────────────────────────────────────
@@ -159,6 +160,7 @@ detect_environment() {
     fi
 
     # Core dependencies
+    local missing_deps=()
     local missing_pkgs=()
     for dep in "${DEPS[@]}"; do
         if check_dep "$dep"; then
@@ -170,7 +172,21 @@ detect_environment() {
             case "$dep" in
                 jq) pkg_name="jq" ;;
                 iptables) pkg_name="iptables" ;;
+                xz)
+                    case "$pm" in
+                        apt) pkg_name="xz-utils" ;;
+                        *) pkg_name="xz" ;;
+                    esac
+                    ;;
+                cron)
+                    case "$pm" in
+                        dnf|yum) pkg_name="cronie" ;;
+                        apk) pkg_name="dcron" ;;
+                        *) pkg_name="cron" ;;
+                    esac
+                    ;;
             esac
+            missing_deps+=("$dep")
             missing_pkgs+=("$pkg_name")
         fi
     done
@@ -180,13 +196,20 @@ detect_environment() {
         echo ""
         pkg_install "${missing_pkgs[@]}" || true
         echo ""
-        for dep in "${missing_pkgs[@]}"; do
+        local i
+        for ((i=0; i<${#missing_deps[@]}; i++)); do
+            local dep="${missing_deps[$i]}"
+            local pkg_name="${missing_pkgs[$i]}"
             if check_dep "$dep"; then
                 msg_success "${dep}:  已自动安装"
             else
                 msg_error "${dep}:  安装失败"
                 ((failed++))
-                [[ "$dep" == "jq" ]] && msg_dim "  手动安装: apt install jq / yum install jq / apk add jq"
+                case "$dep" in
+                    jq) msg_dim "  手动安装: apt install jq / yum install jq / apk add jq" ;;
+                    xz) msg_dim "  手动安装包: ${pkg_name}" ;;
+                    cron) msg_dim "  手动安装包: ${pkg_name}" ;;
+                esac
             fi
         done
     fi

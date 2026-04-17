@@ -59,6 +59,7 @@ declare -A DNS_ENV_PROMPTS=(
 
 # ─── Init cert directory ─────────────────────────────────────────────────────
 cert_init() {
+    ensure_mizu_service_group || return 1
     mkdir -p "$CERT_DIR"
     if [[ ! -f "$CERT_MAP" ]]; then
         echo '{}' > "$CERT_MAP"
@@ -81,7 +82,7 @@ if [[ -z "$domain" || "$domain" =~ [^a-zA-Z0-9._-] ]]; then
 fi
 STATE_FILE="/etc/mizu/state.json"
 if [[ ! -f "$STATE_FILE" ]]; then exit 0; fi
-for svc in $(jq -r '.protocols | to_entries[] | select(.value.domain == "'"$domain"'") | .key' "$STATE_FILE" 2>/dev/null); do
+while IFS= read -r svc; do
     case "$svc" in
         trojan|vless-vision|vmess)
             systemctl reload "mizu-${svc}" 2>/dev/null || systemctl restart "mizu-${svc}" 2>/dev/null
@@ -90,11 +91,11 @@ for svc in $(jq -r '.protocols | to_entries[] | select(.value.domain == "'"$doma
             systemctl restart "mizu-${svc}" 2>/dev/null
             ;;
     esac
-done
+done < <(jq -r --arg d "$domain" '.protocols | to_entries[] | select(.value.domain == $d) | .key' "$STATE_FILE" 2>/dev/null)
 # Reload Caddy if trojan uses this domain
-for svc in $(jq -r '.protocols | to_entries[] | select(.value.domain == "'"$domain"'" and .key == "trojan") | .key' "$STATE_FILE" 2>/dev/null); do
+while IFS= read -r svc; do
     systemctl restart mizu-caddy 2>/dev/null
-done
+done < <(jq -r --arg d "$domain" '.protocols | to_entries[] | select(.value.domain == $d and .key == "trojan") | .key' "$STATE_FILE" 2>/dev/null)
 SCRIPTEOF
     chmod 700 "$RELOAD_CERT_SCRIPT"
 }
@@ -300,17 +301,30 @@ cert_issue() {
     if [[ -n "$webroot" ]]; then
         issue_args+=(--webroot "$webroot")
     else
-        # Try standalone mode (need port 80)
-        _MIZU_PORT80_SVC=""
         if port_in_use 80; then
-            _MIZU_PORT80_SVC=$(ss -tlnp | grep ":80 " | grep -oP 'users:\(\("\K[^"]+' | head -1)
-            if [[ -n "$_MIZU_PORT80_SVC" ]]; then
-                systemctl stop "$_MIZU_PORT80_SVC" 2>/dev/null
-            fi
-        fi
-        # Restore port 80 service on any exit path
-        if [[ -n "$_MIZU_PORT80_SVC" ]]; then
-            trap '_restore_port80' RETURN INT TERM
+            msg_warn "检测到 80 端口已被占用，无法安全使用 HTTP-01 standalone"
+            printf "${C_WHITE}  证书申请方式:${C_RESET}\n"
+            printf "${C_WHITE}  [1] 改用 DNS-01 验证 (推荐)${C_RESET}\n"
+            printf "${C_WHITE}  [0] 取消${C_RESET}\n"
+            printf "请选择: "
+            read -r port80_choice
+
+            case "$port80_choice" in
+                1)
+                    local provider
+                    provider=$(prompt_dns_provider)
+                    if [[ -n "$provider" ]]; then
+                        cert_issue_dns "$domain" "$provider"
+                        return $?
+                    fi
+                    msg_error "已取消"
+                    return 1
+                    ;;
+                *)
+                    msg_dim "已取消"
+                    return 1
+                    ;;
+            esac
         fi
         issue_args+=(--standalone)
     fi
@@ -348,8 +362,20 @@ cert_issue() {
             2)
                 msg_warn "尝试 ZeroSSL..."
                 local zerossl_output
+                local retry_args=(
+                    --home "${ACME_HOME}"
+                    --issue
+                    -d "$domain"
+                    --keylength ec-256
+                    --server zerossl
+                )
+                if [[ -n "$webroot" ]]; then
+                    retry_args+=(--webroot "$webroot")
+                else
+                    retry_args+=(--standalone)
+                fi
                 "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --register-account -m "${_MIZU_ACME_EMAIL:-}" --server zerossl 2>/dev/null
-                zerossl_output=$("${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --issue -d "$domain" --keylength ec-256 --server zerossl --standalone 2>&1)
+                zerossl_output=$("${ACME_HOME}/acme.sh" "${retry_args[@]}" 2>&1)
                 if [[ $? -eq 0 ]]; then
                     msg_success "证书申请成功 (ZeroSSL)"
                 else
@@ -387,28 +413,28 @@ _fix_cert_permissions() {
     local domain="$1"
     local dir="${CERT_DIR}/${domain}"
     [[ ! -d "$dir" ]] && return
-    find "$dir" -type d -exec chmod 755 {} \; 2>/dev/null
-    find "$dir" -name 'fullchain.cer' -exec chmod 644 {} \; 2>/dev/null
-    find "$dir" -name '*.key' -exec chmod 600 {} \; 2>/dev/null
-    find "$dir" -name '*.cer' ! -name 'fullchain.cer' -exec chmod 644 {} \; 2>/dev/null
+    ensure_mizu_service_group || return 1
+    local group
+    group=$(mizu_service_group)
+    chgrp "$group" "${CERT_DIR}" 2>/dev/null || true
+    chmod 750 "${CERT_DIR}" 2>/dev/null || true
+    chgrp -R "$group" "$dir" 2>/dev/null || true
+    find "$dir" -type d -exec chmod 750 {} \; 2>/dev/null
+    find "$dir" -name 'fullchain.cer' -exec chmod 640 {} \; 2>/dev/null
+    find "$dir" -name '*.key' -exec chmod 640 {} \; 2>/dev/null
+    find "$dir" -name '*.cer' ! -name 'fullchain.cer' -exec chmod 640 {} \; 2>/dev/null
 }
 
 _fix_cert_permissions_all() {
     [[ ! -d "${CERT_DIR}" ]] && return
-    find "${CERT_DIR}" -type d -exec chmod 755 {} \; 2>/dev/null
-    find "${CERT_DIR}" -name 'fullchain.cer' -exec chmod 644 {} \; 2>/dev/null
-    find "${CERT_DIR}" -name '*.cer' ! -name 'fullchain.cer' -exec chmod 644 {} \; 2>/dev/null
-    find "${CERT_DIR}" -name '*.key' -exec chmod 600 {} \; 2>/dev/null
-}
-
-# ─── Restore port 80 service ──────────────────────────────────────────────────
-_MIZU_PORT80_SVC=""
-_restore_port80() {
-    if [[ -n "${_MIZU_PORT80_SVC:-}" ]]; then
-        systemctl start "$_MIZU_PORT80_SVC" 2>/dev/null
-        _MIZU_PORT80_SVC=""
-    fi
-    trap - RETURN INT TERM
+    ensure_mizu_service_group || return 1
+    local group
+    group=$(mizu_service_group)
+    chgrp -R "$group" "${CERT_DIR}" 2>/dev/null || true
+    find "${CERT_DIR}" -type d -exec chmod 750 {} \; 2>/dev/null
+    find "${CERT_DIR}" -name 'fullchain.cer' -exec chmod 640 {} \; 2>/dev/null
+    find "${CERT_DIR}" -name '*.cer' ! -name 'fullchain.cer' -exec chmod 640 {} \; 2>/dev/null
+    find "${CERT_DIR}" -name '*.key' -exec chmod 640 {} \; 2>/dev/null
 }
 
 # ─── Certificate reference counting ──────────────────────────────────────────

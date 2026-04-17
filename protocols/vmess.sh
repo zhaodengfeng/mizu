@@ -83,26 +83,15 @@ vmess_install() {
     local ipv4
     ipv4=$(detect_ipv4)
 
-    # VMess share link (v2 base64)
-    local vmess_json
-    vmess_json=$(jq -n \
-        --arg v "2" \
-        --arg ps "Mizu-VMess" \
-        --arg add "$ipv4" \
-        --arg port "$port" \
-        --arg id "$uuid" \
-        --arg host "$domain" \
-        --arg path "$ws_path" \
-        '{v:$v, ps:$ps, add:$add, port:$port, id:$id, aid:"0", scy:"auto", net:"ws", type:"none", host:$host, path:$path, tls:"tls", sni:$host}')
-    local share_link="vmess://$(echo -n "$vmess_json" | base64 -w 0)"
-
     state_set_protocol "$proto" "$(jq -n \
         --arg port "$port" --arg domain "$domain" --arg uuid "$uuid" \
-        --arg path "$ws_path" --arg link "$share_link" '{
+        --arg path "$ws_path" '{
             "port": $port, "domain": $domain, "transport": "TCP+TLS+WS",
-            "status": "running", "share_link": $link,
+            "status": "running",
             "credential": {"uuid": $uuid, "path": $path}
-        }')"
+        }')" || return 1
+    local share_link
+    share_link=$(refresh_share_link "$proto" "$ipv4") || return 1
 
     # Show result
     echo ""
@@ -131,11 +120,11 @@ vmess_regen() {
         && mv "${proto_dir}/config.json.tmp" "${proto_dir}/config.json"
 
     state_set_string ".protocols.${proto}.credential.uuid" "$uuid"
-    service_restart "$proto"
+    service_restart_verified "$proto" || return 1
 
     local ipv4
     ipv4=$(detect_ipv4)
-    save_share_link "$proto" "$ipv4"
+    save_share_link "$proto" "$ipv4" || return 1
     msg_success "凭证已重新生成"
 }
 

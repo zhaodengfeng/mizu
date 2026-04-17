@@ -67,12 +67,26 @@ rt_xray_install() {
     fi
 
     # Backup old binary
-    [[ -f "$XRAY_BIN" ]] && cp "$XRAY_BIN" "${XRAY_BIN}.bak"
+    local backup_bin=""
+    if [[ -f "$XRAY_BIN" ]]; then
+        backup_bin="${XRAY_BIN}.bak"
+        cp "$XRAY_BIN" "$backup_bin"
+    fi
 
     # Extract and install
-    unzip -o "${tmpdir}/${filename}" -d "${tmpdir}/xray" >/dev/null
+    if ! unzip -o "${tmpdir}/${filename}" -d "${tmpdir}/xray" >/dev/null; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$XRAY_BIN"
+        rm -rf "$tmpdir"
+        msg_error "Xray 解压失败，已恢复旧版本"
+        return 1
+    fi
     chmod +x "${tmpdir}/xray/xray"
-    cp "${tmpdir}/xray/xray" "$XRAY_BIN"
+    if ! cp "${tmpdir}/xray/xray" "$XRAY_BIN"; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$XRAY_BIN"
+        rm -rf "$tmpdir"
+        msg_error "Xray 安装失败，已恢复旧版本"
+        return 1
+    fi
 
     # Install geo files
     mkdir -p /usr/local/share/xray
@@ -106,7 +120,7 @@ rt_xray_update() {
     # Restart protocols that depend on Xray
     local xray_protos=("trojan" "vless-reality" "vless-vision" "vmess")
     for p in "${xray_protos[@]}"; do
-        state_protocol_exists "$p" && service_restart "$p" 2>/dev/null
+        state_protocol_exists "$p" && service_restart_verified "$p" 2>/dev/null
     done
     msg_success "相关服务已重启"
 }

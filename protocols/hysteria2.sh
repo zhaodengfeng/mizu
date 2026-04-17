@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 # Mizu — Hysteria 2 protocol (apernet/hysteria)
 
+validate_port_range() {
+    local range="$1"
+    if [[ ! "$range" =~ ^([0-9]{1,5})-([0-9]{1,5})$ ]]; then
+        return 1
+    fi
+
+    local start_port="${BASH_REMATCH[1]}"
+    local end_port="${BASH_REMATCH[2]}"
+    (( start_port >= 1 && start_port <= 65535 )) || return 1
+    (( end_port >= 1 && end_port <= 65535 )) || return 1
+    (( start_port <= end_port )) || return 1
+    return 0
+}
+
 hysteria2_install() {
     local proto="hysteria2"
     local proto_dir="/etc/mizu/${proto}"
@@ -40,13 +54,19 @@ hysteria2_install() {
 
     if prompt_yesno "启用 UDP 端口跳跃? (推荐)" "Y"; then
         port_hopping="y"
-        printf "${C_WHITE}  端口范围 (默认 20000-50000): ${C_RESET}"
-        read -r hopping_input
-        if [[ -n "$hopping_input" ]]; then
-            hopping_range="$hopping_input"
-        else
-            hopping_range="20000-50000"
-        fi
+        while true; do
+            printf "${C_WHITE}  端口范围 (默认 20000-50000): ${C_RESET}"
+            read -r hopping_input
+            if [[ -z "$hopping_input" ]]; then
+                hopping_range="20000-50000"
+                break
+            fi
+            if validate_port_range "$hopping_input"; then
+                hopping_range="$hopping_input"
+                break
+            fi
+            msg_error "端口范围格式无效，请输入如 20000-50000"
+        done
         msg_success "端口跳跃: ${hopping_range} → ${port}"
     fi
 
@@ -84,9 +104,16 @@ EOF
     if [[ "$port_hopping" == "y" ]]; then
         local iface
         iface=$(get_default_interface)
+        if [[ -z "$iface" ]]; then
+            msg_error "无法检测默认网络接口"
+            return 1
+        fi
         local start_port=${hopping_range%%-*}
         local end_port=${hopping_range##*-}
-        iptables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${start_port}:${end_port}" -j REDIRECT --to-port "${port}" 2>/dev/null
+        if ! iptables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${start_port}:${end_port}" -j REDIRECT --to-port "${port}" 2>/dev/null; then
+            msg_error "端口跳跃 iptables 规则添加失败"
+            return 1
+        fi
         # Save iptables rule
         mkdir -p /etc/mizu/iptables
         cat > "/etc/mizu/iptables/${proto}.rules" <<EOF
@@ -120,23 +147,20 @@ EOF
     # Save state
     local ipv4
     ipv4=$(detect_ipv4)
-    local share_params="sni=${domain}&insecure=0"
-    if [[ "$port_hopping" == "y" ]]; then
-        share_params="${share_params}&mport=${hopping_range}"
-    fi
-    local share_link="hysteria2://${password}@${ipv4}:${port}?${share_params}#Mizu-HY2"
 
     state_set_protocol "$proto" "$(jq -n --arg port "$port" --arg domain "$domain" --arg password "$password" \
         --arg port_hopping "$port_hopping" --arg hopping_range "$hopping_range" \
-        --arg link "$share_link" '{
+        '{
             "port": $port, "domain": $domain, "transport": "QUIC/UDP",
-            "status": "running", "share_link": $link,
+            "status": "running",
             "credential": {
                 "password": $password,
                 "port_hopping": $port_hopping,
                 "hopping_range": $hopping_range
             }
-        }')"
+        }')" || return 1
+    local share_link
+    share_link=$(refresh_share_link "$proto" "$ipv4") || return 1
 
     show_install_result "$proto" "$share_link"
 }
@@ -157,11 +181,11 @@ in_auth && /password:/ { print "  password: \"" pw "\""; next }
 ' "${proto_dir}/config.yaml" > "${proto_dir}/config.yaml.tmp" && mv "${proto_dir}/config.yaml.tmp" "${proto_dir}/config.yaml"
 
     state_set_string ".protocols.${proto}.credential.password" "$password"
-    service_restart "$proto"
+    service_restart_verified "$proto" || return 1
 
     local ipv4
     ipv4=$(detect_ipv4)
-    save_share_link "$proto" "$ipv4"
+    save_share_link "$proto" "$ipv4" || return 1
     msg_success "凭证已重新生成"
 }
 
@@ -231,10 +255,10 @@ hysteria2_settings() {
                     sed -i '/^obfs:/,/^[^ ]/{/^obfs:/d;/^  type:/d;/^  salamander:/d;/^    password:/d}' "${proto_dir}/config.yaml"
                     state_set_string ".protocols.${proto}.credential.obfs_type" ""
                     state_set_string ".protocols.${proto}.credential.obfs_password" ""
-                    service_restart "$proto"
+                    service_restart_verified "$proto" || { press_enter; continue; }
                     local ipv4
                     ipv4=$(detect_ipv4)
-                    save_share_link "$proto" "$ipv4"
+                    save_share_link "$proto" "$ipv4" || { press_enter; continue; }
                     msg_success "Salamander 已关闭"
                 else
                     # Enable Salamander
@@ -251,10 +275,10 @@ obfs:
 EOF
                     state_set_string ".protocols.${proto}.credential.obfs_type" "salamander"
                     state_set_string ".protocols.${proto}.credential.obfs_password" "$obfs_password"
-                    service_restart "$proto"
+                    service_restart_verified "$proto" || { press_enter; continue; }
                     local ipv4
                     ipv4=$(detect_ipv4)
-                    save_share_link "$proto" "$ipv4"
+                    save_share_link "$proto" "$ipv4" || { press_enter; continue; }
                     msg_success "Salamander 已开启 (密码: ${obfs_password})"
                 fi
                 press_enter

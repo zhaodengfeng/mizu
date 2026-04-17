@@ -60,14 +60,15 @@ shadowsocks_install() {
     # Save state
     local ipv4
     ipv4=$(detect_ipv4)
-    local share_link="ss://$(echo -n "${SS_METHOD}:${key}@${ipv4}:${port}" | base64 -w 0)#Mizu-SS2022"
 
     state_set_protocol "$proto" "$(jq -n --arg port "$port" --arg method "$SS_METHOD" --arg key "$key" \
-        --arg link "$share_link" '{
+        '{
             "port": $port, "transport": "TCP",
-            "status": "running", "share_link": $link,
+            "status": "running",
             "credential": {"method": $method, "key": $key}
-        }')"
+        }')" || return 1
+    local share_link
+    share_link=$(refresh_share_link "$proto" "$ipv4") || return 1
 
     show_install_result "$proto" "$share_link"
 }
@@ -88,11 +89,11 @@ shadowsocks_regen() {
         && mv "${proto_dir}/config.json.tmp" "${proto_dir}/config.json"
 
     state_set_string ".protocols.${proto}.credential.key" "$key"
-    service_restart "$proto"
+    service_restart_verified "$proto" || return 1
 
     local ipv4
     ipv4=$(detect_ipv4)
-    save_share_link "$proto" "$ipv4"
+    save_share_link "$proto" "$ipv4" || return 1
     msg_success "凭证已重新生成"
 }
 
@@ -146,7 +147,7 @@ shadowsocks_settings() {
                 jq --arg m "$new_mode" '.mode = $m' "${proto_dir}/config.json" > "${proto_dir}/config.json.tmp" \
                     && mv "${proto_dir}/config.json.tmp" "${proto_dir}/config.json"
                 state_set_string ".protocols.${proto}.credential.mode" "$new_mode"
-                service_restart "$proto"
+                service_restart_verified "$proto" || { press_enter; continue; }
                 local new_desc
                 case "$new_mode" in
                     tcp_and_udp) new_desc="TCP + UDP" ;;

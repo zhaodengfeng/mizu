@@ -42,8 +42,8 @@ trojan_install() {
 
     # Step 5: Generate config & site
     msg_step 5 6 "部署伪装网站 (Caddy)..."
-    generate_site "$domain"
-    generate_caddy_config "$domain" 8080
+    generate_site "$domain" || return 1
+    generate_caddy_config "$domain" 8080 || return 1
 
     # Generate Xray config
     mkdir -p "$proto_dir"
@@ -84,10 +84,9 @@ trojan_install() {
     msg_step 6 6 "启动 Trojan..."
 
     # Start Caddy first
-    service_create_caddy
-    systemctl start mizu-caddy 2>/dev/null
+    service_create_caddy || return 1
+    systemd_unit_start_verified "mizu-caddy" "Caddy" || return 1
     systemctl enable mizu-caddy 2>/dev/null
-    msg_success "Caddy 已启动"
 
     # Create and start Trojan service
     service_create "$proto" "/usr/local/bin/xray" "run -config ${proto_dir}/config.json" \
@@ -101,15 +100,16 @@ trojan_install() {
     # Save state
     local ipv4
     ipv4=$(detect_ipv4)
-    local share_link="trojan://${password}@${ipv4}:${port}?security=tls&type=tcp&sni=${domain}#Mizu-Trojan"
 
     state_set_protocol "$proto" "$(jq -n \
         --arg port "$port" --arg domain "$domain" --arg password "$password" \
-        --arg transport "TCP + TLS" --arg link "$share_link" --arg status "running" '{
+        --arg transport "TCP + TLS" --arg status "running" '{
             "port": $port, "domain": $domain, "transport": $transport,
-            "status": $status, "share_link": $link,
+            "status": $status,
             "credential": {"password": $password}
-        }')"
+        }')" || return 1
+    local share_link
+    share_link=$(refresh_share_link "$proto" "$ipv4") || return 1
 
     # Show result
     echo ""
@@ -140,12 +140,12 @@ trojan_regen() {
 
     state_set_string ".protocols.${proto}.credential.password" "$password"
 
-    service_restart "$proto"
+    service_restart_verified "$proto" || return 1
 
     # Regenerate share link
     local ipv4
     ipv4=$(detect_ipv4)
-    save_share_link "$proto" "$ipv4"
+    save_share_link "$proto" "$ipv4" || return 1
 
     msg_success "凭证已重新生成"
     msg_info "新密码: ${password}"

@@ -70,14 +70,15 @@ anytls_install() {
     # Save state
     local ipv4
     ipv4=$(detect_ipv4)
-    local share_link="anytls://${password}@${ipv4}:${port}?sni=${domain}&type=tcp#Mizu-AnyTLS"
 
     state_set_protocol "$proto" "$(jq -n --arg port "$port" --arg domain "$domain" --arg password "$password" \
-        --arg link "$share_link" '{
+        '{
             "port": $port, "domain": $domain, "transport": "TCP+TLS (AnyTLS)",
-            "status": "running", "share_link": $link,
+            "status": "running",
             "credential": {"password": $password}
-        }')"
+        }')" || return 1
+    local share_link
+    share_link=$(refresh_share_link "$proto" "$ipv4") || return 1
 
     show_install_result "$proto" "$share_link"
 }
@@ -94,11 +95,11 @@ anytls_regen() {
         && mv "${proto_dir}/config.json.tmp" "${proto_dir}/config.json"
 
     state_set_string ".protocols.${proto}.credential.password" "$password"
-    service_restart "$proto"
+    service_restart_verified "$proto" || return 1
 
     local ipv4
     ipv4=$(detect_ipv4)
-    save_share_link "$proto" "$ipv4"
+    save_share_link "$proto" "$ipv4" || return 1
     msg_success "凭证已重新生成"
 }
 

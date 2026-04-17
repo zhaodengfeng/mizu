@@ -43,14 +43,6 @@ rt_hysteria_install() {
     if ! download_file "${url}" "$tmpfile"; then
         url="https://github.com/${HYSTERIA_REPO}/releases/download/app/v${version}/${filename}.exe"
         if ! download_file "${url}" "$tmpfile"; then
-            # Try alternative download via install script
-            msg_warn "尝试备用下载方式..."
-            bash <(curl -fsSL https://get.hy2.sh/) >/dev/null 2>&1
-            if [[ -f /usr/local/bin/hysteria ]]; then
-                state_set_string ".runtimes.hysteria" "$version"
-                msg_success "Hysteria v${version} 安装成功"
-                return 0
-            fi
             msg_error "Hysteria 下载失败"
             rm -f "$tmpfile"
             return 1
@@ -58,10 +50,19 @@ rt_hysteria_install() {
     fi
 
     # Backup
-    [[ -f "$HYSTERIA_BIN" ]] && cp "$HYSTERIA_BIN" "${HYSTERIA_BIN}.bak"
+    local backup_bin=""
+    if [[ -f "$HYSTERIA_BIN" ]]; then
+        backup_bin="${HYSTERIA_BIN}.bak"
+        cp "$HYSTERIA_BIN" "$backup_bin"
+    fi
 
     chmod +x "$tmpfile"
-    cp "$tmpfile" "$HYSTERIA_BIN"
+    if ! cp "$tmpfile" "$HYSTERIA_BIN"; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$HYSTERIA_BIN"
+        rm -f "$tmpfile"
+        msg_error "Hysteria 安装失败，已恢复旧版本"
+        return 1
+    fi
     rm -f "$tmpfile"
 
     state_set_string ".runtimes.hysteria" "$version"
@@ -88,7 +89,7 @@ rt_hysteria_update() {
     msg_info "更新 Hysteria ${current} → ${latest}..."
     rt_hysteria_install || return 1
     # Restart protocol that depends on Hysteria
-    state_protocol_exists "hysteria2" && service_restart "hysteria2" 2>/dev/null
+    state_protocol_exists "hysteria2" && service_restart_verified "hysteria2" 2>/dev/null
     msg_success "相关服务已重启"
 }
 

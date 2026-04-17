@@ -41,6 +41,75 @@ check_root() {
     fi
 }
 
+# ─── Service Identity & Permission Helpers ───────────────────────────────────
+readonly MIZU_SERVICE_USER="nobody"
+readonly MIZU_SERVICE_GROUP="mizu"
+
+_group_exists() {
+    local group="$1"
+    getent group "$group" >/dev/null 2>&1 || grep -q "^${group}:" /etc/group 2>/dev/null
+}
+
+mizu_service_user() {
+    echo "$MIZU_SERVICE_USER"
+}
+
+mizu_service_group() {
+    echo "$MIZU_SERVICE_GROUP"
+}
+
+ensure_mizu_service_group() {
+    if _group_exists "$MIZU_SERVICE_GROUP"; then
+        return 0
+    fi
+
+    if command -v groupadd >/dev/null 2>&1; then
+        groupadd --system "$MIZU_SERVICE_GROUP" >/dev/null 2>&1 \
+            || groupadd "$MIZU_SERVICE_GROUP" >/dev/null 2>&1 || true
+    elif command -v addgroup >/dev/null 2>&1; then
+        addgroup --system "$MIZU_SERVICE_GROUP" >/dev/null 2>&1 \
+            || addgroup -S "$MIZU_SERVICE_GROUP" >/dev/null 2>&1 \
+            || addgroup "$MIZU_SERVICE_GROUP" >/dev/null 2>&1 || true
+    fi
+
+    if ! _group_exists "$MIZU_SERVICE_GROUP"; then
+        msg_error "无法创建服务组: ${MIZU_SERVICE_GROUP}"
+        return 1
+    fi
+}
+
+secure_proto_dir() {
+    local proto_dir="$1"
+    [[ -d "$proto_dir" ]] || return 0
+
+    ensure_mizu_service_group || return 1
+
+    local group
+    group=$(mizu_service_group)
+
+    chgrp "$group" "$proto_dir" 2>/dev/null || true
+    chmod 750 "$proto_dir" 2>/dev/null || true
+
+    local had_nullglob=0
+    shopt -q nullglob && had_nullglob=1
+    shopt -s nullglob
+
+    local file
+    for file in "$proto_dir"/*; do
+        [[ -f "$file" ]] || continue
+        case "$file" in
+            *.json|*.yaml|*.yml|*.conf)
+                chgrp "$group" "$file" 2>/dev/null || true
+                chmod 640 "$file" 2>/dev/null || true
+                ;;
+        esac
+    done
+
+    if [[ $had_nullglob -eq 0 ]]; then
+        shopt -u nullglob
+    fi
+}
+
 # ─── Architecture Detection ──────────────────────────────────────────────────
 detect_arch() {
     local arch
@@ -494,29 +563,86 @@ show_qrcode() {
 state_set_protocol() {
     local proto="$1"
     local json="$2"
-    state_set ".protocols.${proto}" "$json"
-    chmod 640 "${proto_dir:-/etc/mizu/${proto}}/config."* 2>/dev/null || true
+    state_set ".protocols.${proto}" "$json" || return 1
+    secure_proto_dir "${proto_dir:-/etc/mizu/${proto}}"
 }
 
 # ─── Service Start with Verification ─────────────────────────────────────────
-service_start_verified() {
-    local proto="$1"
-    systemctl restart "mizu-${proto}"
+_systemd_unit_print_recent_logs() {
+    local unit="$1"
+    msg_dim "最近日志:"
+    journalctl -u "$unit" --no-pager -n 15 2>/dev/null | while IFS= read -r line; do
+        printf "  %s\n" "$line"
+    done
+}
+
+_systemd_unit_wait_active() {
+    local unit="$1"
     local retries=3
     while (( retries > 0 )); do
         sleep 1
-        if systemctl is-active --quiet "mizu-${proto}" 2>/dev/null; then
-            msg_success "${PROTO_NAMES[$proto]:-$proto} 已启动"
+        if systemctl is-active --quiet "$unit" 2>/dev/null; then
             return 0
         fi
         ((retries--))
     done
-    msg_error "${PROTO_NAMES[$proto]:-$proto} 启动失败"
-    msg_dim "最近日志:"
-    journalctl -u "mizu-${proto}" --no-pager -n 15 2>/dev/null | while IFS= read -r line; do
-        printf "  %s\n" "$line"
-    done
     return 1
+}
+
+systemd_unit_start_verified() {
+    local unit="$1"
+    local display_name="${2:-$unit}"
+    systemctl start "$unit"
+    if _systemd_unit_wait_active "$unit"; then
+        msg_success "${display_name} 已启动"
+        return 0
+    fi
+    msg_error "${display_name} 启动失败"
+    _systemd_unit_print_recent_logs "$unit"
+    return 1
+}
+
+systemd_unit_restart_verified() {
+    local unit="$1"
+    local display_name="${2:-$unit}"
+    systemctl restart "$unit"
+    if _systemd_unit_wait_active "$unit"; then
+        msg_success "${display_name} 已重启"
+        return 0
+    fi
+    msg_error "${display_name} 重启失败"
+    _systemd_unit_print_recent_logs "$unit"
+    return 1
+}
+
+systemd_unit_stop_verified() {
+    local unit="$1"
+    local display_name="${2:-$unit}"
+    systemctl stop "$unit"
+    if systemctl is-active --quiet "$unit" 2>/dev/null; then
+        msg_error "${display_name} 停止失败"
+        _systemd_unit_print_recent_logs "$unit"
+        return 1
+    fi
+    msg_success "${display_name} 已停止"
+    return 0
+}
+
+service_start_verified() {
+    local proto="$1"
+    secure_proto_dir "/etc/mizu/${proto}" || return 1
+    systemd_unit_start_verified "mizu-${proto}" "${PROTO_NAMES[$proto]:-$proto}"
+}
+
+service_restart_verified() {
+    local proto="$1"
+    secure_proto_dir "/etc/mizu/${proto}" || return 1
+    systemd_unit_restart_verified "mizu-${proto}" "${PROTO_NAMES[$proto]:-$proto}"
+}
+
+service_stop_verified() {
+    local proto="$1"
+    systemd_unit_stop_verified "mizu-${proto}" "${PROTO_NAMES[$proto]:-$proto}"
 }
 
 # ─── Port Conflict Check Helper ──────────────────────────────────────────────

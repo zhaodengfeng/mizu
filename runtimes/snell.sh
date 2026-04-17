@@ -42,20 +42,35 @@ rt_snell_install() {
     fi
 
     # Backup
-    [[ -f "$SNELL_BIN" ]] && cp "$SNELL_BIN" "${SNELL_BIN}.bak"
+    local backup_bin=""
+    if [[ -f "$SNELL_BIN" ]]; then
+        backup_bin="${SNELL_BIN}.bak"
+        cp "$SNELL_BIN" "$backup_bin"
+    fi
 
-    unzip -o "${tmpdir}/snell.zip" -d "${tmpdir}" >/dev/null
+    if ! unzip -o "${tmpdir}/snell.zip" -d "${tmpdir}" >/dev/null; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$SNELL_BIN"
+        rm -rf "$tmpdir"
+        msg_error "Snell 解压失败，已恢复旧版本"
+        return 1
+    fi
     local snell_file
     snell_file=$(find "${tmpdir}" -name "snell-server" -type f -o -name "snell-server-*" -type f | head -1)
 
     if [[ -z "$snell_file" ]]; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$SNELL_BIN"
         msg_error "Snell 二进制未找到"
         rm -rf "$tmpdir"
         return 1
     fi
 
     chmod +x "$snell_file"
-    cp "$snell_file" "$SNELL_BIN"
+    if ! cp "$snell_file" "$SNELL_BIN"; then
+        [[ -n "$backup_bin" && -f "$backup_bin" ]] && cp "$backup_bin" "$SNELL_BIN"
+        rm -rf "$tmpdir"
+        msg_error "Snell 安装失败，已恢复旧版本"
+        return 1
+    fi
 
     rm -rf "$tmpdir"
     state_set_string ".runtimes.snell" "$SNELL_VERSION"
@@ -80,7 +95,7 @@ rt_snell_update() {
     msg_info "更新 Snell ${current} → ${SNELL_VERSION}..."
     rt_snell_install || return 1
     # Restart protocol that depends on Snell
-    state_protocol_exists "snell" && service_restart "snell" 2>/dev/null
+    state_protocol_exists "snell" && service_restart_verified "snell" 2>/dev/null
     msg_success "相关服务已重启"
 }
 

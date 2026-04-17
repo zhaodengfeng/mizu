@@ -151,23 +151,22 @@ vless_reality_install() {
     local ipv4
     ipv4=$(detect_ipv4)
     local fingerprint="chrome"
-    local encoded_pubkey
-    encoded_pubkey=$(url_encode "$public_key")
-    local share_link="vless://${uuid}@${ipv4}:${port}?encryption=none&security=reality&sni=${dest_domain}&fp=${fingerprint}&pbk=${encoded_pubkey}&sid=${short_id}&type=tcp&flow=xtls-rprx-vision#Mizu-VLESS-Reality"
 
     local state_json
     state_json=$(jq -n \
         --arg port "$port" --arg uuid "$uuid" --arg private_key "$private_key" \
         --arg public_key "$public_key" --arg short_id "$short_id" --arg dest "$dest" \
-        --arg serverName "$dest_domain" --arg fingerprint "$fingerprint" --arg link "$share_link" '{
-            "port": $port, "status": "running", "share_link": $link,
+        --arg serverName "$dest_domain" --arg fingerprint "$fingerprint" '{
+            "port": $port, "status": "running",
             "credential": {
                 "uuid": $uuid, "privateKey": $private_key, "publicKey": $public_key,
                 "shortId": $short_id, "dest": $dest, "serverName": $serverName, "fingerprint": $fingerprint
             }
         }') || { msg_error "状态数据生成失败"; return 1; }
 
-    state_set_protocol "$proto" "$state_json"
+    state_set_protocol "$proto" "$state_json" || return 1
+    local share_link
+    share_link=$(refresh_share_link "$proto" "$ipv4") || return 1
 
     # Show result
     echo ""
@@ -219,7 +218,7 @@ vless_reality_regen() {
     state_set_string ".protocols.${proto}.credential.publicKey" "$public_key"
     state_set_string ".protocols.${proto}.credential.shortId" "$short_id"
 
-    service_restart "$proto"
+    service_restart_verified "$proto" || return 1
 
     local ipv4
     ipv4=$(detect_ipv4)
@@ -268,7 +267,7 @@ vless_reality_settings() {
                 state_set_string ".protocols.${proto}.credential.dest" "$new_dest"
                 state_set_string ".protocols.${proto}.credential.serverName" "$new_domain"
 
-                service_restart "$proto"
+                service_restart_verified "$proto" || { press_enter; continue; }
 
                 # Regenerate share link
                 local ipv4
@@ -278,14 +277,10 @@ vless_reality_settings() {
                 public_key=$(state_get ".protocols.${proto}.credential.publicKey")
                 short_id=$(state_get ".protocols.${proto}.credential.shortId")
                 fingerprint=$(state_get ".protocols.${proto}.credential.fingerprint")
-                local encoded_pubkey
-                encoded_pubkey=$(url_encode "$public_key")
                 local port
                 port=$(state_get ".protocols.${proto}.port")
-                local share_link="vless://${uuid}@${ipv4}:${port}?encryption=none&security=reality&sni=${new_domain}&fp=${fingerprint}&pbk=${encoded_pubkey}&sid=${short_id}&type=tcp&flow=xtls-rprx-vision#Mizu-VLESS-Reality"
-                state_set_string ".protocols.${proto}.share_link" "$share_link"
-                mkdir -p /etc/mizu/share-links
-                echo "$share_link" > "/etc/mizu/share-links/${proto}.txt"
+                local share_link
+                share_link=$(refresh_share_link "$proto" "$ipv4") || { press_enter; continue; }
 
                 msg_success "伪装目标已切换为 ${new_dest}"
                 press_enter

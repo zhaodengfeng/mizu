@@ -85,7 +85,7 @@ shadowtls_install() {
             "port": $port, "domain": $domain, "transport": "TCP+TLS (ShadowTLS v3)",
             "status": "running",
             "credential": {"shadowtls_password": $st_password, "ss_password": $ss_password}
-        }')"
+        }')" || return 1
 
     # Show result (ShadowTLS outputs Clash config fragment, no standard share link)
     echo ""
@@ -117,7 +117,7 @@ shadowtls_regen() {
 
     local st_password ss_password
     st_password=$(gen_password)
-    ss_password=$(gen_password)
+    ss_password=$(gen_base64 32)
 
     jq --arg st "$st_password" --arg ss "$ss_password" \
         '.inbounds[0].users[0].password = $st | .inbounds[1].password = $ss' \
@@ -126,7 +126,7 @@ shadowtls_regen() {
 
     state_set_string ".protocols.${proto}.credential.shadowtls_password" "$st_password"
     state_set_string ".protocols.${proto}.credential.ss_password" "$ss_password"
-    service_restart "$proto"
+    service_restart_verified "$proto" || return 1
 
     # Update persisted Clash config
     local ipv4

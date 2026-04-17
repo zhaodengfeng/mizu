@@ -120,11 +120,12 @@ load_runtimes() {
 # ─── Init ─────────────────────────────────────────────────────────────────────
 mizu_init() {
     check_root
+    ensure_mizu_service_group
 
     # Create log directory
     mkdir -p /var/log/mizu
-    chmod 750 /var/log/mizu
-    chown root:adm /var/log/mizu 2>/dev/null || chown root:root /var/log/mizu
+    chown root:"$(mizu_service_group)" /var/log/mizu 2>/dev/null || chown root:root /var/log/mizu
+    chmod 2770 /var/log/mizu
 
     # Setup logrotate (once)
     if [[ ! -f /etc/logrotate.d/mizu ]]; then
@@ -208,12 +209,7 @@ cli_start() {
         msg_error "${PROTO_NAMES[$proto]} 未安装"
         exit 1
     fi
-    # Start caddy if trojan
-    if [[ "$proto" == "trojan" ]]; then
-        systemctl start mizu-caddy 2>/dev/null
-    fi
-    service_start "$proto"
-    msg_success "${PROTO_NAMES[$proto]} 已启动"
+    service_start_verified "$proto" || exit 1
 }
 
 cli_stop() {
@@ -222,8 +218,7 @@ cli_stop() {
         msg_error "${PROTO_NAMES[$proto]} 未安装"
         exit 1
     fi
-    service_stop "$proto"
-    msg_success "${PROTO_NAMES[$proto]} 已停止"
+    service_stop_verified "$proto" || exit 1
 }
 
 cli_restart() {
@@ -232,8 +227,7 @@ cli_restart() {
         msg_error "${PROTO_NAMES[$proto]} 未安装"
         exit 1
     fi
-    service_restart "$proto"
-    msg_success "${PROTO_NAMES[$proto]} 已重启"
+    service_restart_verified "$proto" || exit 1
 }
 
 cli_regen() {
@@ -421,13 +415,11 @@ tui_manage_protocols() {
         case "$choice" in
             0) return ;;
             a)
-                service_start_all
-                msg_success "所有协议已启动"
+                service_start_all_verified && msg_success "所有协议已启动"
                 press_enter
                 ;;
             A)
-                service_stop_all
-                msg_success "所有协议已停止"
+                service_stop_all_verified && msg_success "所有协议已停止"
                 press_enter
                 ;;
             [1-9]*)
@@ -461,20 +453,15 @@ tui_protocol_detail() {
         case "$choice" in
             0) return ;;
             s)
-                # Start (also start caddy for trojan)
-                [[ "$proto" == "trojan" ]] && systemctl start mizu-caddy 2>/dev/null
-                service_start "$proto"
-                msg_success "${PROTO_NAMES[$proto]} 已启动"
+                service_start_verified "$proto"
                 press_enter
                 ;;
             t)
-                service_stop "$proto"
-                msg_success "${PROTO_NAMES[$proto]} 已停止"
+                service_stop_verified "$proto"
                 press_enter
                 ;;
             r)
-                service_restart "$proto"
-                msg_success "${PROTO_NAMES[$proto]} 已重启"
+                service_restart_verified "$proto"
                 press_enter
                 ;;
             g)

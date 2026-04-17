@@ -57,11 +57,16 @@
 | CentOS Stream | 8+ |
 | Fedora | 38+ |
 | AlmaLinux / Rocky Linux | 8+ |
-| Alpine | 3.18+ |
 
 架构: `x86_64 (amd64)` / `aarch64 (arm64)`
 
 </div>
+
+要求：`systemd` 环境、`root` 权限。
+
+说明：
+- 当前默认支持以 `systemd` 为服务管理器的 Linux 发行版。
+- Alpine / OpenRC 环境暂不列为默认支持目标。
 
 ## 快速开始
 

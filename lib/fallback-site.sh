@@ -11,6 +11,9 @@ SITE_DIR="/var/www/mizu"
 # ─── Generate fake website ───────────────────────────────────────────────────
 generate_site() {
     local domain="$1"
+    ensure_mizu_service_group || return 1
+    local group
+    group=$(mizu_service_group)
 
     mkdir -p "${SITE_DIR}/journal" "${SITE_DIR}/about" "${SITE_DIR}/css"
 
@@ -58,6 +61,10 @@ Allow: /
 Sitemap: https://${domain}/sitemap.xml
 EOF
 
+    chgrp -R "$group" "${SITE_DIR}" 2>/dev/null || true
+    find "${SITE_DIR}" -type d -exec chmod 750 {} \; 2>/dev/null
+    find "${SITE_DIR}" -type f -exec chmod 640 {} \; 2>/dev/null
+
     msg_success "伪装网站已生成"
 }
 
@@ -66,6 +73,9 @@ generate_caddy_config() {
     local domain="$1"
     local listen_port="${2:-8080}"
     local caddy_dir="/etc/mizu/caddy"
+    ensure_mizu_service_group || return 1
+    local group
+    group=$(mizu_service_group)
 
     mkdir -p "$caddy_dir"
 
@@ -89,6 +99,10 @@ generate_caddy_config() {
     }
 }
 EOF
+
+    chgrp "$group" "$caddy_dir" "${caddy_dir}/Caddyfile" 2>/dev/null || true
+    chmod 750 "$caddy_dir" 2>/dev/null || true
+    chmod 640 "${caddy_dir}/Caddyfile" 2>/dev/null || true
 
     msg_success "Caddy 配置已生成"
 }
@@ -310,19 +324,19 @@ EOF
 # ─── Generate Journal Page ───────────────────────────────────────────────────
 generate_journal() {
     local site_name="$1"
-    cat <<'EOF'
+    cat <<EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Journal</title>
+    <title>${site_name} Journal</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
 <div class="container">
     <header>
-        <h1>Journal</h1>
+        <h1>${site_name} Journal</h1>
         <nav>
             <a href="/">Home</a>
             <a href="/journal/">Journal</a>
@@ -339,7 +353,7 @@ generate_journal() {
             <article><h2>A Walk Through the Neighborhood</h2><div class="date">December 2025</div><p class="excerpt">Sometimes the most ordinary walks yield the most extraordinary observations.</p></article>
         </div>
     </main>
-    <footer><p>&copy; 2026 Journal. All rights reserved.</p></footer>
+    <footer><p>&copy; $(date +%Y) ${site_name}. All rights reserved.</p></footer>
 </div>
 </body>
 </html>

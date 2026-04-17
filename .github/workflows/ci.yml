@@ -26,19 +26,18 @@ jobs:
             | xargs -0 shellcheck \
                 --exclude=SC1091,SC2034 \
                 --severity=warning \
-                --format=tty \
-                || true
+                --format=tty
 
       - name: Check bash syntax
         run: |
           errors=0
-          for f in $(find . -name "*.sh" -not -path "./.git/*"); do
+          while IFS= read -r -d '' f; do
             if ! bash -n "$f" 2>/dev/null; then
               echo "::error file=$f::Syntax error in $f"
               bash -n "$f"
               errors=$((errors + 1))
             fi
-          done
+          done < <(find . -name "*.sh" -not -path "./.git/*" -print0)
           if [[ $errors -gt 0 ]]; then
             echo "Found $errors syntax errors"
             exit 1
