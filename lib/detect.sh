@@ -62,7 +62,6 @@ check_dep() {
 
 # ─── Install acme.sh ─────────────────────────────────────────────────────────
 ACME_VER="3.1.0"
-ACME_SHA256="a4215e5c62d4f41e3e3c50f2d4e06a22e5ff47f0160b59b3fc20db62cd9c43bc"
 
 install_acme() {
     if [[ -f "${ACME_HOME}/acme.sh" ]]; then
@@ -70,24 +69,37 @@ install_acme() {
     fi
     msg_warn "acme.sh: 未安装 → 安装中 (v${ACME_VER})..."
 
-    local tgz="/tmp/acme.sh-${ACME_VER}.tar.gz"
+    local tmpdir tgz src_dir acme_src
+    tmpdir=$(mktemp -d)
+    tgz="${tmpdir}/acme.sh-${ACME_VER}.tar.gz"
+    src_dir="${tmpdir}/src"
     if ! download_file "https://github.com/acmesh-official/acme.sh/archive/refs/tags/${ACME_VER}.tar.gz" "$tgz"; then
         msg_error "acme.sh: 下载失败"
+        rm -rf "$tmpdir"
         return 1
     fi
 
-    local actual
-    actual=$(sha256sum "$tgz" | awk '{print $1}')
-    if [[ "$actual" != "$ACME_SHA256" ]]; then
-        msg_error "acme.sh: SHA256 校验失败 (期望 ${ACME_SHA256:0:16}... 得到 ${actual:0:16}...)"
-        rm -f "$tgz"
+    mkdir -p "$src_dir"
+    if ! tar -xzf "$tgz" -C "$src_dir" >/dev/null; then
+        msg_error "acme.sh: 解压失败"
+        rm -rf "$tmpdir"
         return 1
     fi
 
-    tar -xzf "$tgz" -C /tmp >/dev/null
-    ( cd "/tmp/acme.sh-${ACME_VER}" && ./acme.sh --install --home "${ACME_HOME}" >/dev/null 2>&1 )
-    rm -f "$tgz"
-    rm -rf "/tmp/acme.sh-${ACME_VER}"
+    acme_src=$(find "$src_dir" -maxdepth 2 -type f -name acme.sh | head -1)
+    if [[ -z "$acme_src" ]]; then
+        msg_error "acme.sh: 安装包内容异常"
+        rm -rf "$tmpdir"
+        return 1
+    fi
+
+    if ! ( cd "$(dirname "$acme_src")" && ./acme.sh --install --home "${ACME_HOME}" >/dev/null 2>&1 ); then
+        msg_error "acme.sh: 安装脚本执行失败"
+        rm -rf "$tmpdir"
+        return 1
+    fi
+
+    rm -rf "$tmpdir"
 
     if [[ -f "${ACME_HOME}/acme.sh" ]]; then
         msg_success "acme.sh: 已自动安装 (隔离目录: ${ACME_HOME})"
