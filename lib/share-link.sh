@@ -172,7 +172,9 @@ gen_ss_link() {
     method=$(state_get ".protocols.shadowsocks.credential.method")
     key=$(state_get ".protocols.shadowsocks.credential.key")
     port=$(state_get ".protocols.shadowsocks.port")
-    echo "ss://$(echo -n "${method}:$(url_encode "$key")@${ipv4}:${port}" | base64 -w 0)#Mizu-SS2022"
+    local userinfo
+    userinfo=$(printf '%s' "${method}:${key}" | base64 -w 0 | tr '+/' '-_' | tr -d '=')
+    echo "ss://${userinfo}@${ipv4}:${port}#Mizu-SS2022"
 }
 
 # ─── Save share link to state ────────────────────────────────────────────────

@@ -88,8 +88,7 @@ rt_hysteria_update() {
 
     msg_info "更新 Hysteria ${current} → ${latest}..."
     rt_hysteria_install || return 1
-    # Restart protocol that depends on Hysteria
-    state_protocol_exists "hysteria2" && service_restart_verified "hysteria2" 2>/dev/null
+    restart_protocols_verified "hysteria2" || return 1
     msg_success "相关服务已重启"
 }
 

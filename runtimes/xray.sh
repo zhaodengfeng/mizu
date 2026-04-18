@@ -117,11 +117,8 @@ rt_xray_update() {
 
     msg_info "更新 Xray ${current} → ${latest}..."
     rt_xray_install || return 1
-    # Restart protocols that depend on Xray
     local xray_protos=("trojan" "vless-reality" "vless-vision" "vmess")
-    for p in "${xray_protos[@]}"; do
-        state_protocol_exists "$p" && service_restart_verified "$p" 2>/dev/null
-    done
+    restart_protocols_verified "${xray_protos[@]}" || return 1
     msg_success "相关服务已重启"
 }
 

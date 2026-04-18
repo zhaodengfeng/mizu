@@ -94,8 +94,7 @@ rt_snell_update() {
 
     msg_info "更新 Snell ${current} → ${SNELL_VERSION}..."
     rt_snell_install || return 1
-    # Restart protocol that depends on Snell
-    state_protocol_exists "snell" && service_restart_verified "snell" 2>/dev/null
+    restart_protocols_verified "snell" || return 1
     msg_success "相关服务已重启"
 }
 

@@ -69,9 +69,6 @@ cert_init() {
 
 # ─── Install certificate reload helper script ─────────────────────────────────
 _install_reload_cert_script() {
-    if [[ -f "$RELOAD_CERT_SCRIPT" ]]; then
-        return 0
-    fi
     mkdir -p /etc/mizu
     cat > "$RELOAD_CERT_SCRIPT" <<'SCRIPTEOF'
 #!/usr/bin/env bash
@@ -177,7 +174,8 @@ prompt_dns_env() {
             prompt_text="$var_name"
         fi
         printf "${C_WHITE}  %s: ${C_RESET}" "$prompt_text"
-        read -r val
+        read -rs val
+        echo
         export "$var_name=$val"
     done
 }
@@ -232,11 +230,18 @@ cert_issue_dns() {
 
     # Install certificate
     mkdir -p "${CERT_DIR}/${domain}"
-    "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --install-cert -d "$domain" --ecc \
+    if ! "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --install-cert -d "$domain" --ecc \
         --fullchain-file "${CERT_DIR}/${domain}/fullchain.cer" \
         --key-file "${CERT_DIR}/${domain}/${domain}.key" \
         --reloadcmd "${RELOAD_CERT_SCRIPT} ${domain}" \
-        2>/dev/null
+        2>/dev/null; then
+        msg_error "证书安装失败"
+        return 1
+    fi
+    if [[ ! -s "${CERT_DIR}/${domain}/fullchain.cer" || ! -s "${CERT_DIR}/${domain}/${domain}.key" ]]; then
+        msg_error "证书文件缺失或为空"
+        return 1
+    fi
 
     save_dns_config "$domain" "$provider"
     msg_success "证书已安装到 ${CERT_DIR}/${domain}/"
@@ -395,11 +400,18 @@ cert_issue() {
 
     # Install certificate
     mkdir -p "${CERT_DIR}/${domain}"
-    "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --install-cert -d "$domain" --ecc \
+    if ! "${ACME_HOME}/acme.sh" --home "${ACME_HOME}" --install-cert -d "$domain" --ecc \
         --fullchain-file "${CERT_DIR}/${domain}/fullchain.cer" \
         --key-file "${CERT_DIR}/${domain}/${domain}.key" \
         --reloadcmd "${RELOAD_CERT_SCRIPT} ${domain}" \
-        2>/dev/null
+        2>/dev/null; then
+        msg_error "证书安装失败"
+        return 1
+    fi
+    if [[ ! -s "${CERT_DIR}/${domain}/fullchain.cer" || ! -s "${CERT_DIR}/${domain}/${domain}.key" ]]; then
+        msg_error "证书文件缺失或为空"
+        return 1
+    fi
 
     msg_success "证书已安装到 ${CERT_DIR}/${domain}/"
     cert_ref_add "$domain"

@@ -157,8 +157,7 @@ rt_ss_update() {
 
     msg_info "更新 shadowsocks-rust ${current} → ${latest}..."
     rt_ss_install || return 1
-    # Restart protocol that depends on shadowsocks-rust
-    state_protocol_exists "shadowsocks" && service_restart_verified "shadowsocks" 2>/dev/null
+    restart_protocols_verified "shadowsocks" || return 1
     msg_success "相关服务已重启"
 }
 

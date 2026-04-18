@@ -645,6 +645,42 @@ service_stop_verified() {
     systemd_unit_stop_verified "mizu-${proto}" "${PROTO_NAMES[$proto]:-$proto}"
 }
 
+restart_protocols_verified() {
+    local failures=()
+    local proto
+    for proto in "$@"; do
+        if ! state_protocol_exists "$proto"; then
+            continue
+        fi
+        if ! service_restart_verified "$proto"; then
+            failures+=("${PROTO_NAMES[$proto]:-$proto}")
+        fi
+    done
+
+    if [[ ${#failures[@]} -gt 0 ]]; then
+        msg_error "以下协议重启失败: ${failures[*]}"
+        return 1
+    fi
+    return 0
+}
+
+delete_iptables_rules_from_file() {
+    local rules_file="$1"
+    [[ -f "$rules_file" ]] || return 0
+
+    local rule_cmd delete_cmd
+    while IFS= read -r rule_cmd; do
+        [[ -z "$rule_cmd" || "$rule_cmd" == \#* ]] && continue
+        delete_cmd="${rule_cmd/ -A / -D }"
+        [[ "$delete_cmd" == "$rule_cmd" ]] && continue
+
+        local argv=()
+        read -r -a argv <<< "$delete_cmd"
+        [[ ${#argv[@]} -gt 0 ]] || continue
+        "${argv[@]}" 2>/dev/null || true
+    done < "$rules_file"
+}
+
 # ─── Port Conflict Check Helper ──────────────────────────────────────────────
 resolve_port() {
     local default_port="$1"

@@ -119,11 +119,8 @@ rt_singbox_update() {
 
     msg_info "更新 sing-box ${current} → ${latest}..."
     rt_singbox_install || return 1
-    # Restart protocols that depend on sing-box
     local singbox_protos=("shadowtls" "anytls")
-    for p in "${singbox_protos[@]}"; do
-        state_protocol_exists "$p" && service_restart_verified "$p" 2>/dev/null
-    done
+    restart_protocols_verified "${singbox_protos[@]}" || return 1
     msg_success "相关服务已重启"
 }
 

@@ -110,15 +110,15 @@ EOF
         fi
         local start_port=${hopping_range%%-*}
         local end_port=${hopping_range##*-}
-        if ! iptables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${start_port}:${end_port}" -j REDIRECT --to-port "${port}" 2>/dev/null; then
+        if ! iptables -t nat -A PREROUTING -i "${iface}" -p udp --dport "${start_port}:${end_port}" -m comment --comment "mizu-${proto}" -j REDIRECT --to-port "${port}" 2>/dev/null; then
             msg_error "端口跳跃 iptables 规则添加失败"
             return 1
         fi
         # Save iptables rule
         mkdir -p /etc/mizu/iptables
-        cat > "/etc/mizu/iptables/${proto}.rules" <<EOF
+cat > "/etc/mizu/iptables/${proto}.rules" <<EOF
 #!/bin/bash
-iptables -t nat -A PREROUTING -i ${iface} -p udp --dport ${start_port}:${end_port} -j REDIRECT --to-port ${port}
+iptables -t nat -A PREROUTING -i ${iface} -p udp --dport ${start_port}:${end_port} -m comment --comment mizu-${proto} -j REDIRECT --to-port ${port}
 EOF
         chmod 700 "/etc/mizu/iptables/${proto}.rules"
 
@@ -203,18 +203,8 @@ hysteria2_uninstall() {
     systemctl daemon-reload 2>/dev/null || true
 
     # Remove iptables rules
-    if [[ -f "/etc/mizu/iptables/${proto}.rules" ]]; then
-        local iface hopping_range port
-        iface=$(get_default_interface)
-        hopping_range=$(state_get ".protocols.${proto}.credential.hopping_range")
-        port=$(state_get ".protocols.${proto}.port")
-        if [[ -n "$hopping_range" && "$hopping_range" != "null" ]]; then
-            local start_port=${hopping_range%%-*}
-            local end_port=${hopping_range##*-}
-            iptables -t nat -D PREROUTING -i "${iface}" -p udp --dport "${start_port}:${end_port}" -j REDIRECT --to-port "${port}" 2>/dev/null || true
-        fi
-        rm -f "/etc/mizu/iptables/${proto}.rules"
-    fi
+    delete_iptables_rules_from_file "/etc/mizu/iptables/${proto}.rules"
+    rm -f "/etc/mizu/iptables/${proto}.rules"
 
     rm -rf "$proto_dir"
 

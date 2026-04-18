@@ -335,9 +335,11 @@ do_uninstall_all() {
         systemctl disable "$svc_name" 2>/dev/null || true
         rm -f "$f"
     done
-    if command -v iptables &>/dev/null; then
-        iptables -t nat -S 2>/dev/null | grep "REDIRECT" | grep -i "mizu\|/etc/mizu" | while read -r rule; do
-            iptables -t nat $(echo "$rule" | sed 's/^-A/-D/') 2>/dev/null || true
+    if [[ -d /etc/mizu/iptables ]]; then
+        local rules_file
+        for rules_file in /etc/mizu/iptables/*.rules; do
+            [[ -f "$rules_file" ]] || continue
+            delete_iptables_rules_from_file "$rules_file"
         done
     fi
     systemctl daemon-reload 2>/dev/null || true
