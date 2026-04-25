@@ -482,7 +482,7 @@ spinner_stop() {
 download_file() {
     local url="$1"
     local output="$2"
-    curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 300 -o "$output" "$url"
+    curl -fL --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 120 --progress-bar -o "$output" "$url"
 }
 
 github_latest_tag() {
